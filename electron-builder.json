@@ -1,0 +1,17 @@
+{
+  "appId": "com.glint.editor",
+  "productName": "Glint",
+  "mac": {
+    "target": ["dmg", "zip"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "dmg": {
+    "window": { "width": 540, "height": 380 },
+    "iconSize": 100
+  },
+  "files": ["src/**/*", "package.json"],
+  "directories": {
+    "app": ".",
+    "buildResources": "assets"
+  }
+}

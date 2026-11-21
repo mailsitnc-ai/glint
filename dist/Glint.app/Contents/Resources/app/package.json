@@ -1,0 +1,19 @@
+{
+  "name": "glint",
+  "productName": "Glint",
+  "description": "A VS Code-inspired code editor with liquid glass UI, colour customisation, and an Electron shell.",
+  "version": "0.1.0",
+  "author": "mailsitnc-ai",
+  "license": "MIT",
+  "main": "./src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}

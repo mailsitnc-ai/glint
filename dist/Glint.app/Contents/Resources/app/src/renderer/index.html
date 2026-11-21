@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glint</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: rgba(20, 20, 24, 0.6);
+      --surface-hover: rgba(30, 30, 36, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text: #e8eaed;
+      --text-muted: #94a3b8;
+      --accent: #7c3aed;
+      --accent-glass: rgba(124, 58, 237, 0.35);
+      --sidebar: rgba(15, 15, 18, 0.7);
+      --tab-active: rgba(255, 255, 255, 0.1);
+      --tab-hover: rgba(255, 255, 255, 0.04);
+      --scrollbar: rgba(255, 255, 255, 0.06);
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root {
+      height: 100%;
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- Liquid glass utilities --- */
+    .glass {
+      background: var(--surface);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .glass-input {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--glass-border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .glass-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    /* --- Layout --- */
+    #root {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Title bar */
+    .titlebar {
+      height: 30px;
+      -webkit-app-region: drag;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--glass-border);
+      user-select: none;
+      z-index: 10;
+    }
+    .titlebar .app-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text);
+      opacity: 0.9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .titlebar .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .titlebar .dot.red { background: #ff5f56; box-shadow: 0 0 0 1px rgba(255,95,86,0.35); }
+    .titlebar .dot.yellow { background: #ffbd2e; box-shadow: 0 0 0 1px rgba(255,189,46,0.35); }
+    .titlebar .dot.green { background: #27c93f; box-shadow: 0 0 0 1px rgba(39,201,63,0.35); }
+
+    .titlebar-controls {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+    .win-btn {
+      width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer;
+      opacity: 0.9;
+    }
+    .win-btn.close { background: #ff5f56; }
+    .win-btn.minimize { background: #ffbd2e; }
+    .win-btn.maximize { background: #27c93f; }
+
+    /* Main workspace */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 200px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s ease, opacity 0.2s ease;
+      z-index: 5;
+    }
+    .sidebar.hidden { width: 0; opacity: 0; }
+    .sidebar-header {
+      height: 44px;
+      padding: 12px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.03);
+    }
+    .sidebar-header .icon { width: 16px; height: 16px; opacity: 0.7; }
+
+    .explorer {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .explorer-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      color: var(--text);
+    }
+    .explorer-item:hover { background: var(--surface-hover); }
+    .explorer-item.active { background: var(--accent-glass); color: #fff; }
+    .explorer-item .type-dir { color: var(--accent); opacity: 0.8; }
+
+    /* Editor area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    .tabbar {
+      height: 34px;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 6px;
+      background: var(--tab-hover);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      cursor: default;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .tab.active {
+      background: var(--tab-active);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .tab:hover:not(.active) { background: var(--surface-hover); }
+    .tab-close {
+      width: 16px; height: 16px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.15); color: var(--text);
+      font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+    }
+    .tab:hover .tab-close { opacity: 1; }
+
+    .editor-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    #editor {
+      width: 100%;
+      height: 100%;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      background: transparent;
+      color: var(--text);
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 20px;
+      box-sizing: border-box;
+      tab-size: 2;
+    }
+    #editor::placeholder { color: var(--text-muted); }
+
+    .statusbar {
+      height: 26px;
+      background: rgba(0,0,0,0.3);
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .statusbar .right { display: flex; gap: 16px; }
+
+    /* Empty state */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      gap: 10px;
+    }
+    .empty h2 { font-size: 20px; font-weight: 600; color: var(--text); }
+    .empty p { font-size: 14px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 6px; border: 3px solid transparent; background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+    /* Theme variants applied to body */
+    body.theme-glint-dark { --bg: #0f0f12; --surface: rgba(20, 20, 24, 0.6); }
+    body.theme-glint-light {
+      --bg: #f4f5f7;
+      --surface: rgba(255,255,255,0.6);
+      --text: #1e1e1e;
+      --text-muted: #555;
+      --sidebar: rgba(245,246,248,0.8);
+      --accent: #6d28d9;
+    }
+    body.theme-ocean { --bg: #0b1f30; --surface: rgba(11, 31, 48, 0.6); --accent: #38bdf8; }
+    body.theme-solarized {
+      --bg: #fdf6e3;
+      --surface: rgba(253, 246, 227, 0.7);
+      --text: #586e75;
+      --text-muted: #93a1a1;
+      --sidebar: rgba(253, 246, 227, 0.8);
+      --accent: #268bd2;
+      color: var(--text);
+    }
+    body.theme-solarized .glass { color: var(--text); }
+    body.theme-solarized #editor { color: var(--text); }
+    body.theme-solarized .explorer-item { color: var(--text); }
+    body.theme-solarized .statusbar { color: var(--text-muted); }
+    body.theme-solarized .titlebar .app-name { color: var(--text); }
+
+  </style>
+</head>
+<body class="theme-glint-dark">
+  <div id="root">
+    <div class="titlebar">
+      <div class="app-name">
+        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+        Glint
+      </div>
+      <div class="titlebar-controls">
+        <button class="win-btn minimize" onclick="window.electronAPI?ipcRenderer.send('minimize'):null" title="Minimize"></button>
+        <button class="win-btn maximize" title="Maximize"></button>
+        <button class="win-btn close" title="Close"></button>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10M3 10l2-2m-2 2v-6m0 0l2 2m-2 2V6"/></svg>
+          Explorer
+        </div>
+        <div class="explorer" id="explorer">
+          <div class="empty">
+            <div style="font-size:28px;opacity:0.5">📂</div>
+            <h2>Open a folder</h2>
+            <p>File &gt; Open Folder to start editing</p>
+          </div>
+        </div>
+      </aside>
+
+      <div class="editor-area">
+        <div class="tabbar" id="tabbar">
+          <div class="tab active" style="flex:1;justify-content:center;color:var(--text-muted)">No editor</div>
+        </div>
+        <div class="editor-wrap">
+          <textarea id="editor" placeholder="Open a file to start editing…" spellcheck="false"></textarea>
+        </div>
+        <div class="statusbar">
+          <div id="status-left">UTF-8 &nbsp;|&nbsp; Spaces: 2</div>
+          <div class="right" id="status-right">Glint 0.1.0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    const explorer = document.getElementById('explorer');
+    const editor = document.getElementById('editor');
+    const tabbar = document.getElementById('tabbar');
+    const statusLeft = document.getElementById('status-left');
+
+    let currentFolder = null;
+    let openFiles = []; // {path, name}
+    let activePath = null;
+
+    // Init settings
+    window.electronAPI.getSettings().then((s) => {
+      if (s.theme) document.body.className = 'theme-' + s.theme;
+    });
+
+    // Open folder (menu sends 'open-folder' via ipc; also wire button)
+    async function openFolder() {
+      const { dialog } = await import('electron');
+      // renderer can't open dialog directly; ask main
+      ipcRenderer.send('open-folder');
+    }
+
+    window.electronAPI.onFolderOpened((data) => {
+      currentFolder = data;
+      renderExplorer(data.entries);
+      editor.disabled = false;
+      editor.placeholder = `Editing in ${data.name}`;
+      statusLeft.textContent = data.path + '  |  UTF-8  |  Spaces: 2';
+    });
+
+    async function renderExplorer(entries) {
+      explorer.innerHTML = '';
+      if (!entries || entries.length === 0) {
+        explorer.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--text-muted)">Empty folder</div>';
+        return;
+      }
+      [...entries].sort((a,b) => (a.type===b.type ? a.name.localeCompare(b.name) : a.type==='directory'?-1:1))
+        .forEach(e => {
+          const div = document.createElement('div');
+          div.className = 'explorer-item';
+          div.innerHTML = `<span class="${e.type==='directory'?'type-dir':''}">${e.type==='directory'?'📁':'📄'}</span>${e.name}`;
+          div.title = e.name;
+          div.onclick = () => openFile(e.name, e.type);
+          explorer.appendChild(div);
+        });
+    }
+
+    async function openFile(name, type) {
+      if (type === 'directory') return;
+      const filePath = currentFolder.path + '/' + name;
+      if (openFiles.find(f => f.path === filePath)) {
+        setActive(filePath); return;
+      }
+      try {
+        const content = await window.electronAPI.readFile(filePath);
+        openFiles.push({ path: filePath, name });
+        renderTabs();
+        setActive(filePath);
+        editor.value = content;
+        editor.disabled = false;
+        editor.focus();
+      } catch (err) {
+        alert('Could not read file: ' + err.message);
+      }
+    }
+
+    function renderTabs() {
+      tabbar.innerHTML = '';
+      openFiles.forEach(f => {
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (f.path === activePath ? ' active' : '');
+        tab.innerHTML = `${f.name} <button class="tab-close" onclick="closeFile('${f.path.replace(/'/g,"\\'")}', event)">×</button>`;
+        tab.onclick = () => setActive(f.path);
+        tabbar.appendChild(tab);
+      });
+      if (openFiles.length === 0) {
+        tabbar.innerHTML = '<div class="tab" style="flex:1;justify-content:center;color:var(--text-muted)">No editor</div>';
+      }
+    }
+
+    function setActive(path) {
+      activePath = path;
+      const file = openFiles.find(f => f.path === path);
+      if (!file) return;
+      editor.value = '';
+      const content = window.electronAPI.readFile(path).then(c => { editor.value = c; });
+      renderTabs();
+      statusLeft.textContent = path + '  |  UTF-8  |  Spaces: 2';
+    }
+
+    window.closeFile = function(path, ev) {
+      ev.stopPropagation();
+      openFiles = openFiles.filter(f => f.path !== path);
+      if (activePath === path) {
+        activePath = openFiles[0]?.path || null;
+        editor.value = activePath ? '' : '';
+        if (activePath) {
+          window.electronAPI.readFile(activePath).then(c => editor.value = c);
+        } else {
+          editor.disabled = true;
+          editor.placeholder = 'Open a file to start editing…';
+        }
+      }
+      renderTabs();
+    };
+
+    editor.addEventListener('input', () => {
+      const tab = Array.from(tabbar.children).find(t => t.classList.contains('active'));
+      if (tab && !tab.textContent.includes('●')) tab.textContent = '● ' + (openFiles.find(f=>f.path===activePath)?.name||'') + ' ';
+    });
+
+    // Save via Ctrl+S
+    editor.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (!activePath) return;
+        window.electronAPI.writeFile(activePath, editor.value).then(() => {
+          const tab = Array.from(tabbar.children).find(t => t.classList.contains('active'));
+          if (tab) tab.textContent = tab.textContent.replace('● ','');
+          statusLeft.textContent = 'Saved ' + new Date().toLocaleTimeString();
+        });
+      }
+    });
+
+    // Expose for window controls (minimal)
+    window.ipcRenderer = ipcRenderer;
+  </script>
+</body>
+</html>
