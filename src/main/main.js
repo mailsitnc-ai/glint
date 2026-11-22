@@ -1,95 +1,83 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const fsSync = require('node:fs');
+
+const { SettingsStore } = require('./services/settings');
+const { WorkspaceService } = require('./services/workspace');
+const { AIService, lineDiff } = require('./services/ai');
+const { CollaborationService } = require('./services/collaboration');
+const { IntelligenceService } = require('./services/intelligence');
+const { WorkflowService } = require('./services/workflow');
+const { ThemesService } = require('./services/themes');
+const { GitService } = require('./services/git');
 
 const isMac = process.platform === 'darwin';
 
 let mainWindow = null;
 
-const settingsPath = () => path.join(app.getPath('userData'), 'settings.json');
-const statePath = () => path.join(app.getPath('userData'), 'state.json');
+const settings = new SettingsStore(app.getPath('userData'));
+const workspace = new WorkspaceService();
+const ai = new AIService(settings);
+const collaboration = new CollaborationService(settings);
+const intelligence = new IntelligenceService();
+const workflow = new WorkflowService(settings);
+const themes = new ThemesService(app.getPath('userData'));
+const git = new GitService();
 
-/** Default settings: liquid-glass editor look with full colour customisation. */
-const DEFAULT_SETTINGS = {
-  theme: 'glint-dark',
-  accent: '#7c3aed',
-  bg: '#0f0f12',
-  text: '#e8eaed',
-  muted: '#94a3b8',
-  glassBlur: 22,
-  glassOpacity: 62,
-  fontSize: 14,
-  fontFamily: 'Menlo',
-  tabSize: 2,
-  minimap: false,
-  wordWrap: false,
-  liquidGlass: true,
-};
-
-async function readJson(file, fallback) {
-  try {
-    return { ...fallback, ...JSON.parse(await fs.readFile(file, 'utf-8')) };
-  } catch {
-    return { ...fallback };
-  }
-}
-
-async function writeJson(file, value) {
-  try {
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, JSON.stringify(value, null, 2));
-    return true;
-  } catch (err) {
-    console.error('[glint] failed to write', file, err);
-    return false;
-  }
-}
+/* ------------------------------------------------------------------ */
+/* Window                                                              */
+/* ------------------------------------------------------------------ */
 
 function createWindow() {
+  const bounds = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
+    width: Math.min(1360, bounds.width - 80),
+    height: Math.min(860, bounds.height - 80),
     minWidth: 900,
     minHeight: 600,
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     trafficLightPosition: isMac ? { x: 14, y: 12 } : undefined,
-    backgroundColor: DEFAULT_SETTINGS.bg,
+    backgroundColor: settings.settings.bg,
     show: false,
+    title: 'Glint',
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
+      webSecurity: true,
+      backgroundThrottling: false,
     },
   });
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-
   mainWindow.once('ready-to-show', () => mainWindow.show());
-
   mainWindow.on('closed', () => {
     mainWindow = null;
+    globalThis.mainWindow = null;
   });
 
-  // Surface renderer errors in the terminal so failures are visible.
   mainWindow.webContents.on('console-message', (_e, level, message, line, source) => {
     if (level >= 2) console.error(`[renderer] ${message} (${source}:${line})`);
   });
 
-  mainWindow.webContents.on('render-process-gone', (_e, details) => {
-    console.error('[glint] renderer gone:', details.reason);
-  });
+  globalThis.mainWindow = mainWindow;
 }
 
+/* ------------------------------------------------------------------ */
+/* Menu                                                                */
+/* ------------------------------------------------------------------ */
+
 function buildMenu() {
+  const send = (command) => mainWindow?.webContents.send('menu', command);
+
   const template = [
     ...(isMac
       ? [
           {
             label: 'Glint',
             submenu: [
-              { label: 'About Glint', click: () => dialog.showMessageBox(mainWindow, { message: 'Glint 0.1.0', detail: 'A liquid-glass code editor.' }) },
+              { label: 'About Glint', click: () => dialog.showMessageBox(mainWindow, { message: 'Glint 0.2.0', detail: 'A liquid-glass code editor.' }) },
               { type: 'separator' },
               { role: 'services' },
               { type: 'separator' },
@@ -109,8 +97,10 @@ function buildMenu() {
         { label: 'Open Folder…', accelerator: 'CmdOrCtrl+O', click: () => openFolderDialog() },
         { label: 'Open File…', accelerator: 'CmdOrCtrl+Shift+O', click: () => openFileDialog() },
         { type: 'separator' },
-        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => mainWindow?.webContents.send('menu', 'save') },
-        { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu', 'save-as') },
+        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
+        { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => send('save-as') },
+        { type: 'separator' },
+        { label: 'AI: Generate Commit Message', accelerator: 'CmdOrCtrl+Alt+M', click: () => send('ai-commit-message') },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
@@ -118,27 +108,33 @@ function buildMenu() {
     {
       label: 'Edit',
       submenu: [
-        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => mainWindow?.webContents.send('menu', 'undo') },
-        { label: 'Redo', accelerator: 'Shift+CmdOrCtrl+Z', click: () => mainWindow?.webContents.send('menu', 'redo') },
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => send('undo') },
+        { label: 'Redo', accelerator: 'Shift+CmdOrCtrl+Z', click: () => send('redo') },
         { type: 'separator' },
-        { label: 'Cut', accelerator: 'CmdOrCtrl+X', click: () => mainWindow?.webContents.send('menu', 'cut') },
-        { label: 'Copy', accelerator: 'CmdOrCtrl+C', click: () => mainWindow?.webContents.send('menu', 'copy') },
-        { label: 'Paste', accelerator: 'CmdOrCtrl+V', click: () => mainWindow?.webContents.send('menu', 'paste') },
+        { label: 'Cut', accelerator: 'CmdOrCtrl+X', click: () => send('cut') },
+        { label: 'Copy', accelerator: 'CmdOrCtrl+C', click: () => send('copy') },
+        { label: 'Paste', accelerator: 'CmdOrCtrl+V', click: () => send('paste') },
         { type: 'separator' },
-        { label: 'Find', accelerator: 'CmdOrCtrl+F', click: () => mainWindow?.webContents.send('menu', 'find') },
-        { label: 'Replace', accelerator: 'Shift+CmdOrCtrl+F', click: () => mainWindow?.webContents.send('menu', 'replace') },
+        { label: 'Find', accelerator: 'CmdOrCtrl+F', click: () => send('find') },
+        { label: 'Replace', accelerator: 'Shift+CmdOrCtrl+F', click: () => send('replace') },
         { type: 'separator' },
-        { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => mainWindow?.webContents.send('menu', 'select-all') },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: () => send('select-all') },
+        { type: 'separator' },
+        { label: 'AI: Explain Selection', accelerator: 'CmdOrCtrl+Alt+E', click: () => send('ai-explain') },
+        { label: 'AI: Refactor Selection', accelerator: 'CmdOrCtrl+Alt+R', click: () => send('ai-refactor') },
+        { label: 'AI: Generate Documentation', accelerator: 'CmdOrCtrl+Alt+D', click: () => send('ai-docstring') },
       ],
     },
     {
       label: 'View',
       submenu: [
-        { label: 'Command Palette…', accelerator: 'Shift+CmdOrCtrl+P', click: () => mainWindow?.webContents.send('menu', 'command-palette') },
-        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => mainWindow?.webContents.send('menu', 'toggle-sidebar') },
-        { label: 'Toggle Panel', accelerator: 'CmdOrCtrl+J', click: () => mainWindow?.webContents.send('menu', 'toggle-panel') },
+        { label: 'Command Palette…', accelerator: 'Shift+CmdOrCtrl+P', click: () => send('command-palette') },
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => send('toggle-sidebar') },
+        { label: 'Toggle Panel', accelerator: 'CmdOrCtrl+J', click: () => send('toggle-panel') },
+        { label: 'Toggle Zen Mode', accelerator: 'CmdOrCtrl+K', click: () => send('toggle-zen') },
         { type: 'separator' },
-        { label: 'Customise Colours…', accelerator: 'Shift+CmdOrCtrl+K', click: () => mainWindow?.webContents.send('menu', 'settings') },
+        { label: 'Toggle Liquid Mode', accelerator: 'CmdOrCtrl+Alt+L', click: () => send('toggle-liquid') },
+        { label: 'Customise Colours…', accelerator: 'Shift+CmdOrCtrl+K', click: () => send('settings') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -149,15 +145,52 @@ function buildMenu() {
       ],
     },
     {
+      label: 'AI',
+      submenu: [
+        { label: 'Toggle AI Chat', accelerator: 'CmdOrCtrl+Alt+A', click: () => send('toggle-ai') },
+        { label: 'AI Settings…', click: () => send('ai-settings') },
+        { type: 'separator' },
+        { label: 'Toggle Ghost Text', click: () => send('toggle-ghost-text') },
+        { label: 'Check AI Provider', click: () => send('ai-health') },
+      ],
+    },
+    {
+      label: 'Collab',
+      submenu: [
+        { label: 'Start Collaboration Session…', click: () => send('collab-start') },
+        { label: 'Join Session…', click: () => send('collab-join') },
+        { label: 'Stop Session', click: () => send('collab-stop') },
+        { type: 'separator' },
+        { label: 'Toggle Voice Chat', click: () => send('toggle-voice') },
+      ],
+    },
+    {
       label: 'Theme',
       submenu: [
+        { label: 'Theme Marketplace…', click: () => send('theme-marketplace') },
+        { type: 'separator' },
         { label: 'Glint Dark', click: () => setTheme('glint-dark') },
         { label: 'Glint Light', click: () => setTheme('glint-light') },
         { label: 'Ocean', click: () => setTheme('ocean') },
         { label: 'Solarized', click: () => setTheme('solarized') },
         { label: 'Midnight', click: () => setTheme('midnight') },
         { type: 'separator' },
-        { label: 'Customise…', click: () => mainWindow?.webContents.send('menu', 'settings') },
+        { label: 'Customise…', click: () => send('settings') },
+      ],
+    },
+    {
+      label: 'Tools',
+      submenu: [
+        { label: 'Semantic Search…', accelerator: 'CmdOrCtrl+Shift+F', click: () => send('semantic-search') },
+        { label: 'Find Dead Code', click: () => send('dead-code') },
+        { label: 'Test Impact Analysis', click: () => send('test-impact') },
+        { type: 'separator' },
+        { label: 'Start Live Preview', click: () => send('preview-start') },
+        { label: 'Stop Live Preview', click: () => send('preview-stop') },
+        { label: 'Deploy…', click: () => send('deploy') },
+        { type: 'separator' },
+        { label: 'Database Browser…', click: () => send('database') },
+        { label: 'API Client…', click: () => send('api-client') },
       ],
     },
     {
@@ -176,29 +209,7 @@ function buildMenu() {
 }
 
 /* ------------------------------------------------------------------ */
-/* IPC: settings                                                        */
-/* ------------------------------------------------------------------ */
-
-ipcMain.handle('settings:get', async () => {
-  return await readJson(settingsPath(), DEFAULT_SETTINGS);
-});
-
-ipcMain.handle('settings:set', async (_e, patch) => {
-  const current = await readJson(settingsPath(), DEFAULT_SETTINGS);
-  const next = { ...current, ...patch };
-  await writeJson(settingsPath(), next);
-  mainWindow?.webContents.send('settings:changed', next);
-  return next;
-});
-
-ipcMain.handle('settings:reset', async () => {
-  await writeJson(settingsPath(), DEFAULT_SETTINGS);
-  mainWindow?.webContents.send('settings:changed', DEFAULT_SETTINGS);
-  return DEFAULT_SETTINGS;
-});
-
-/* ------------------------------------------------------------------ */
-/* IPC: workspace                                                       */
+/* Workspace dialogs                                                   */
 /* ------------------------------------------------------------------ */
 
 async function openFolderDialog() {
@@ -207,14 +218,29 @@ async function openFolderDialog() {
     title: 'Open Folder',
   });
   if (result.canceled || !result.filePaths.length) return null;
+  return await openFolderPath(result.filePaths[0]);
+}
 
-  const folderPath = result.filePaths[0];
-  const tree = await buildTree(folderPath);
-  const state = await readJson(statePath(), { recent: [] });
-  const recent = [folderPath, ...(state.recent || []).filter((p) => p !== folderPath)].slice(0, 10);
-  await writeJson(statePath(), { ...state, recent, lastFolder: folderPath });
+async function openFolderPath(folderPath) {
+  const tree = await workspace.readTree(folderPath);
+  workspace.setRoot(folderPath);
 
-  const payload = { path: folderPath, name: path.basename(folderPath), tree, recent };
+  const state = await settings.getState();
+  const recent = [folderPath, ...(state.recent || []).filter((p) => p !== folderPath)].slice(0, 12);
+  await settings.setState({ recent, lastFolder: folderPath });
+
+  // Per-workspace appearance overrides.
+  const merged = await settings.loadWorkspace(folderPath);
+
+  // Start native watching so external edits are picked up instantly.
+  if (settings.settings.nativeWatch) {
+    workspace.onChange = (event) => {
+      mainWindow?.webContents.send('workspace:changed', event);
+    };
+    workspace.watch(folderPath);
+  }
+
+  const payload = { path: folderPath, name: path.basename(folderPath), tree, recent, settings: merged };
   mainWindow?.webContents.send('workspace:opened', payload);
   return payload;
 }
@@ -226,132 +252,219 @@ async function openFileDialog() {
   });
   if (result.canceled || !result.filePaths.length) return null;
   const filePath = result.filePaths[0];
-  const content = await fs.readFile(filePath, 'utf-8');
-  const payload = { path: filePath, name: path.basename(filePath), content };
+  const read = await workspace.readFile(filePath);
+  if (!read.ok) return null;
+  const payload = { path: filePath, name: path.basename(filePath), content: read.content };
   mainWindow?.webContents.send('file:opened', payload);
   return payload;
 }
 
-/** Recursively build a directory tree, skipping heavy/irrelevant folders. */
-const IGNORED = new Set(['node_modules', '.git', '.DS_Store', 'dist', 'build', '.next', '.cache', 'out', '.venv', '__pycache__']);
+/* ------------------------------------------------------------------ */
+/* IPC: settings                                                       */
+/* ------------------------------------------------------------------ */
 
-async function buildTree(dir, depth = 0) {
-  if (depth > 12) return [];
-  let entries = [];
-  try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+ipcMain.handle('settings:get', async () => await settings.getAll());
+ipcMain.handle('settings:set', async (_e, patch) => {
+  const next = await settings.update(patch);
+  mainWindow?.webContents.send('settings:changed', next);
+  return next;
+});
+ipcMain.handle('settings:reset', async () => {
+  const next = await settings.reset();
+  mainWindow?.webContents.send('settings:changed', next);
+  return next;
+});
+ipcMain.handle('settings:workspace', async (_e, root) => await settings.loadWorkspace(root));
 
-  const nodes = [];
-  for (const entry of entries) {
-    if (IGNORED.has(entry.name) || entry.name.startsWith('.')) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const children = await buildTree(full, depth + 1);
-      nodes.push({ name: entry.name, path: full, type: 'directory', children });
-    } else if (entry.isFile()) {
-      let size = 0;
-      try {
-        size = (await fs.stat(full)).size;
-      } catch {
-        /* ignore */
-      }
-      nodes.push({ name: entry.name, path: full, type: 'file', size });
-    }
-  }
-
-  nodes.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  });
-
-  return nodes;
-}
+/* ------------------------------------------------------------------ */
+/* IPC: workspace and files                                            */
+/* ------------------------------------------------------------------ */
 
 ipcMain.handle('workspace:open-folder', async () => await openFolderDialog());
 ipcMain.handle('workspace:open-file', async () => await openFileDialog());
-ipcMain.handle('workspace:tree', async (_e, dir) => await buildTree(dir));
-ipcMain.handle('workspace:recent', async () => {
-  const state = await readJson(statePath(), { recent: [] });
-  return state.recent || [];
-});
-
-/** Open a folder by path, bypassing the native dialog (used by tests and by
-    drag-and-drop / CLI launch arguments). */
-async function openFolderPath(folderPath) {
-  const tree = await buildTree(folderPath);
-  const state = await readJson(statePath(), { recent: [] });
-  const recent = [folderPath, ...(state.recent || []).filter((p) => p !== folderPath)].slice(0, 10);
-  await writeJson(statePath(), { ...state, recent, lastFolder: folderPath });
-  const payload = { path: folderPath, name: path.basename(folderPath), tree, recent };
-  mainWindow?.webContents.send('workspace:opened', payload);
-  return payload;
-}
-
 ipcMain.handle('workspace:open-path', async (_e, folderPath) => await openFolderPath(folderPath));
+ipcMain.handle('workspace:tree', async (_e, dir) => await workspace.readTree(dir));
+ipcMain.handle('workspace:recent', async () => (await settings.getState()).recent || []);
+ipcMain.handle('workspace:root', async () => workspace.root);
 
-/* ------------------------------------------------------------------ */
-/* IPC: files                                                           */
-/* ------------------------------------------------------------------ */
-
-ipcMain.handle('file:read', async (_e, filePath) => {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    return { ok: true, content };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
-});
-
-ipcMain.handle('file:write', async (_e, filePath, content) => {
-  try {
-    await fs.writeFile(filePath, content, 'utf-8');
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
-});
-
+ipcMain.handle('file:read', async (_e, filePath) => await workspace.readFile(filePath));
+ipcMain.handle('file:write', async (_e, filePath, content) => await workspace.writeFile(filePath, content));
 ipcMain.handle('file:save-as', async (_e, suggestedName, content) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Save As',
     defaultPath: suggestedName || 'untitled.txt',
   });
   if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+  const write = await workspace.writeFile(result.filePath, content);
+  return write.ok ? { ok: true, path: result.filePath, name: path.basename(result.filePath) } : write;
+});
+ipcMain.handle('file:exists', async (_e, filePath) => {
   try {
-    await fs.writeFile(result.filePath, content, 'utf-8');
-    return { ok: true, path: result.filePath, name: path.basename(result.filePath) };
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+});
+ipcMain.handle('file:watch', async (_e, filePath) => workspace.watchFile(filePath, (eventType, p) => {
+  mainWindow?.webContents.send('file:changed', { path: p, event: eventType });
+}));
+
+/* ------------------------------------------------------------------ */
+/* IPC: AI                                                             */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('ai:status', async () => ({
+  configured: ai.isConfigured(),
+  ...ai.providerInfo(),
+}));
+
+ipcMain.handle('ai:models', async () => await ai.listModels());
+ipcMain.handle('ai:health', async () => await ai.healthCheck());
+
+ipcMain.handle('ai:chat', async (_e, messages, options) => await ai.chat(messages, options));
+
+ipcMain.handle('ai:explain', async (_e, payload) =>
+  await ai.explain({ ...payload, code: payload.code ?? payload.selection ?? '' }));
+
+ipcMain.handle('ai:refactor', async (_e, payload) =>
+  await ai.refactor({ ...payload, code: payload.code ?? payload.selection ?? '' }));
+
+ipcMain.handle('ai:completion', async (_e, payload) => await ai.completion(payload));
+
+ipcMain.handle('ai:docstring', async (_e, payload) => {
+  const result = await ai.docstring(payload);
+  if (result.ok) return result;
+  // Fall back to the local static generator when no provider is configured.
+  return { ok: true, text: intelligence.generateDocstring(payload.code, payload.language), local: true };
+});
+
+ipcMain.handle('ai:commit-message', async (_e, root) => {
+  const { ok, diff, error } = await git.fullDiff(root || workspace.root);
+  if (!ok) return { ok: false, error };
+  if (!diff.trim()) return { ok: false, error: 'There are no changes to describe' };
+
+  const branch = (await git.status(root || workspace.root)).branch || '';
+  const result = await ai.commitMessage({ diff, branch });
+  if (!result.ok) return result;
+  return { ok: true, message: result.text, diff };
+});
+
+ipcMain.handle('ai:diff', async (_e, before, after) => lineDiff(before, after));
+
+/* ------------------------------------------------------------------ */
+/* IPC: collaboration                                                  */
+/* ------------------------------------------------------------------ */
+
+collaboration.onEvent = (event) => mainWindow?.webContents.send('collab:event', event);
+
+ipcMain.handle('collab:start', async (_e, options) => {
+  const root = options?.workspacePath || workspace.root;
+  if (!root) return { ok: false, error: 'Open a folder before starting a session' };
+  try {
+    const result = await collaboration.startLocalRoom(root, options);
+    mainWindow?.webContents.send('collab:event', { type: 'peers', peers: collaboration.getPeers() });
+    return { ok: true, ...result };
   } catch (err) {
     return { ok: false, error: err.message };
   }
 });
 
-ipcMain.handle('file:exists', async (_e, filePath) => fsSync.existsSync(filePath));
-
-const watchedFiles = new Set();
-ipcMain.handle('file:watch', async (_e, filePath) => {
-  if (!filePath || watchedFiles.has(filePath)) return true;
-  if (!fsSync.existsSync(filePath)) return false;
-  watchedFiles.add(filePath);
-  fsSync.watchFile(filePath, { interval: 900 }, (current, previous) => {
-    if (current.mtimeMs !== previous.mtimeMs) {
-      mainWindow?.webContents.send('file:changed', filePath);
-    }
-  });
-  return true;
-});
-ipcMain.handle('file:unwatch', async (_e, filePath) => {
-  if (filePath && watchedFiles.has(filePath)) {
-    fsSync.unwatchFile(filePath);
-    watchedFiles.delete(filePath);
+ipcMain.handle('collab:join', async (_e, url, options) => {
+  try {
+    const result = await collaboration.joinRoom(url, options);
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, error: err.message };
   }
-  return true;
 });
+
+ipcMain.handle('collab:stop', async () => {
+  await collaboration.stop();
+  return { ok: true };
+});
+
+ipcMain.handle('collab:peers', async () => collaboration.getPeers());
+ipcMain.handle('collab:operation', async (_e, filePath, before, after) =>
+  collaboration.broadcastOperation(filePath, before, after));
+ipcMain.handle('collab:cursor', async (_e, filePath, cursor) =>
+  collaboration.broadcastCursor(filePath, cursor));
+ipcMain.handle('collab:chat', async (_e, message) => {
+  collaboration.sendChat(message);
+  return { ok: true };
+});
+ipcMain.handle('collab:apply', async (_e, filePath, op, currentText) =>
+  collaboration.applyRemote(filePath, op, currentText));
 
 /* ------------------------------------------------------------------ */
-/* IPC: window controls                                                 */
+/* IPC: intelligence                                                   */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('intel:search', async (_e, query, options) =>
+  await intelligence.search(workspace.root, query, options));
+ipcMain.handle('intel:dead-code', async () => await intelligence.findDeadCode(workspace.root));
+ipcMain.handle('intel:test-impact', async (_e, changedFiles) =>
+  await intelligence.testImpact(workspace.root, changedFiles));
+ipcMain.handle('intel:overview', async () => await intelligence.projectOverview(workspace.root));
+ipcMain.handle('intel:docstring', async (_e, code, language) =>
+  ({ ok: true, text: intelligence.generateDocstring(code, language) }));
+
+/* ------------------------------------------------------------------ */
+/* IPC: workflow                                                       */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('workflow:preview-start', async () => {
+  if (!workspace.root) return { ok: false, error: 'Open a folder first' };
+  return await workflow.startPreview(workspace.root);
+});
+ipcMain.handle('workflow:preview-stop', async () => await workflow.stopPreview());
+ipcMain.handle('workflow:preview-log', async () => workflow.getPreviewLog());
+ipcMain.handle('workflow:deploy-targets', async () => workflow.getDeployTargets());
+ipcMain.handle('workflow:deploy', async (_e, options) =>
+  await workflow.deploy({ ...options, root: workspace.root }));
+ipcMain.handle('workflow:db-connect', async (_e, connectionString) =>
+  await workflow.dbConnect(connectionString));
+ipcMain.handle('workflow:db-query', async (_e, connectionString, query) =>
+  await workflow.dbQuery(connectionString, query));
+ipcMain.handle('workflow:api-request', async (_e, options) => await workflow.apiRequest(options));
+ipcMain.handle('workflow:terminal', async (_e, command) =>
+  await workflow.runTerminal(command, workspace.root || process.cwd()));
+
+/* ------------------------------------------------------------------ */
+/* IPC: themes and fonts                                               */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('themes:list', async () => await themes.listAll());
+ipcMain.handle('themes:install', async (_e, theme) => await themes.install(theme));
+ipcMain.handle('themes:remove', async (_e, id) => await themes.remove(id));
+ipcMain.handle('themes:export', async (_e, name) => await themes.exportCurrent(settings.settings, name));
+ipcMain.handle('themes:wallpaper', async () => await themes.captureWallpaper());
+ipcMain.handle('themes:ambient', async () => themes.ambientTint());
+ipcMain.handle('themes:font-import', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: 'Import Font',
+    filters: [{ name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] }],
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false, cancelled: true };
+  return await themes.importFont(result.filePaths[0]);
+});
+ipcMain.handle('themes:fonts', async () => await themes.listFonts());
+
+/* ------------------------------------------------------------------ */
+/* IPC: git                                                            */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('git:status', async () => await git.status(workspace.root));
+ipcMain.handle('git:diff', async (_e, filePath, staged) => await git.diff(workspace.root, filePath, staged));
+ipcMain.handle('git:staged-diff', async () => await git.stagedDiff(workspace.root));
+ipcMain.handle('git:stage', async (_e, filePath) => await git.stage(workspace.root, filePath));
+ipcMain.handle('git:unstage', async (_e, filePath) => await git.unstage(workspace.root, filePath));
+ipcMain.handle('git:commit', async (_e, message) => await git.commit(workspace.root, message));
+ipcMain.handle('git:log', async (_e, limit) => await git.log(workspace.root, limit));
+
+/* ------------------------------------------------------------------ */
+/* IPC: window controls                                                */
 /* ------------------------------------------------------------------ */
 
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
@@ -362,14 +475,13 @@ ipcMain.on('window:toggle-maximize', () => {
 ipcMain.on('window:close', () => mainWindow?.close());
 
 /* ------------------------------------------------------------------ */
-/* App lifecycle                                                        */
+/* Lifecycle                                                           */
 /* ------------------------------------------------------------------ */
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await settings.init();
   buildMenu();
   createWindow();
-  // Expose the window for debugging and automation tooling.
-  globalThis.mainWindow = mainWindow;
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -377,12 +489,25 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  workspace.unwatchAll();
+  collaboration.stop().catch(() => {});
   if (!isMac) app.quit();
 });
 
 async function setTheme(theme) {
-  const current = await readJson(settingsPath(), DEFAULT_SETTINGS);
-  const next = { ...current, theme };
-  await writeJson(settingsPath(), next);
+  const all = await themes.listAll();
+  const found = all.find((t) => t.id === theme);
+  const patch = found
+    ? {
+        theme: found.id,
+        bg: found.bg,
+        text: found.text,
+        muted: found.muted,
+        accent: found.accent,
+        glassBlur: found.glassBlur,
+        glassOpacity: found.glassOpacity,
+      }
+    : { theme };
+  const next = await settings.update(patch);
   mainWindow?.webContents.send('settings:changed', next);
 }
