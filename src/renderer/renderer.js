@@ -236,64 +236,45 @@
     return map[ext] || 'Plain Text';
   }
 
-  /** Lightweight regex tokenizer.
-      Tokenises the RAW source, then HTML-escapes each token as it is emitted,
-      so string/comment delimiters are matched correctly and the rendered
-      output always decodes back to the exact original source text. */
+  /** Minimal tokenizer that preserves source text and escapes output. */
   function highlight(code) {
     const source = String(code);
-    if (!activeTab()) return escapeHtml(source);
+    const tab = activeTab();
+    if (!tab || tab.language === 'Plain Text') return escapeHtml(source);
 
-    const lang = activeTab().language;
-    if (lang === 'Plain Text') return escapeHtml(source);
+    const tokenPattern = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`\\])*`|"(?:\\[\s\S]|[^"\\\n])*"|'(?:\\[\s\S]|[^'\\\n])*'|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\b[A-Za-z_$][\w$]*\b|[+\-*/%=<>!|&?:]+/g;
+    let result = '';
+    let cursor = 0;
+    let match;
 
-    const tokens = [];
+    while ((match = tokenPattern.exec(source)) !== null) {
+      result += escapeHtml(source.slice(cursor, match.index));
+      const token = match[0];
+      const before = source.slice(0, match.index);
+      let cls = '';
 
-    const stash = (cls, text) => {
-      tokens.push(`<span class="${cls}">${escapeHtml(text)}</span>`);
-      return `GLINTTOKEN${tokens.length - 1}END`;
-    };
-
-    // Plain source segments are escaped as they are emitted below.
-
-    let work = source;
-
-    // Strings first, so comment markers such as "//" inside URLs remain strings.
-    work = work.replace(/`(?:\\[\s\S]|[^`\\])*`|"(?:\\[\s\S]|[^"\\\n])*"|'(?:\\[\s\S]|[^'\\\n])*'/g, (m) => stash('tk-string', m));
-
-    // Line and block comments. Preserve the character before // when it is
-    // needed to avoid treating URL schemes as comments.
-    work = work.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/[^\n]*|#[^\n]*/g, (m, lead = '') => {
-      if (lead && m.startsWith(lead + '//')) {
-        return lead + stash('tk-comment', m.slice(lead.length));
+      if (token.startsWith('//') || token.startsWith('/*') || token.startsWith('#')) {
+        cls = 'tk-comment';
+      } else if (token.startsWith('"') || token.startsWith("'") || token.startsWith('`')) {
+        cls = 'tk-string';
+      } else if (/^\d/.test(token)) {
+        cls = 'tk-number';
+      } else if (KEYWORDS.has(token)) {
+        cls = CONSTANTS.has(token) ? 'tk-const' : 'tk-keyword';
+      } else if (/^[A-Za-z_$]/.test(token)) {
+        const after = source.slice(match.index + token.length);
+        if (/^\s*\(/.test(after)) cls = 'tk-function';
+      } else {
+        cls = 'tk-operator';
       }
-      return stash('tk-comment', m);
-    });
 
-    // Numbers.
-    work = work.replace(/\b(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g, (m) => stash('tk-number', m));
-
-    // Keywords and constants.
-    work = work.replace(/\b([A-Za-z_$][\w$]*)\b/g, (m) => {
-      if (KEYWORDS.has(m)) return stash('tk-keyword', m);
-      if (CONSTANTS.has(m)) return stash('tk-const', m);
-      return m;
-    });
-
-    // Function calls: identifier immediately followed by an opening paren.
-    work = work.replace(/\b([A-Za-z_$][\w$]*)(?=\s*\()/g, (m) => stash('tk-function', m));
-
-    // Operators.
-    work = work.replace(/([+\-*/%=<>!|&?:]+)/g, (m) => stash('tk-operator', m));
-
-    // Restore stashed tokens and escape only the plain text segments.
-    const parts = work.split(/GLINTTOKEN(\d+)END/);
-    let out = '';
-    for (let i = 0; i < parts.length; i++) {
-      if (i % 2 === 1) out += tokens[Number(parts[i])];
-      else out += escapeHtml(parts[i]);
+      const safe = escapeHtml(token);
+      result += cls ? `<span class="${cls}">${safe}</span>` : safe;
+      cursor = match.index + token.length;
     }
-    return out;
+
+    result += escapeHtml(source.slice(cursor));
+    return result;
   }
 
   /* ------------------------------------------------------------------ */

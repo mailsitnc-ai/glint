@@ -278,6 +278,20 @@ ipcMain.handle('workspace:recent', async () => {
   return state.recent || [];
 });
 
+/** Open a folder by path, bypassing the native dialog (used by tests and by
+    drag-and-drop / CLI launch arguments). */
+async function openFolderPath(folderPath) {
+  const tree = await buildTree(folderPath);
+  const state = await readJson(statePath(), { recent: [] });
+  const recent = [folderPath, ...(state.recent || []).filter((p) => p !== folderPath)].slice(0, 10);
+  await writeJson(statePath(), { ...state, recent, lastFolder: folderPath });
+  const payload = { path: folderPath, name: path.basename(folderPath), tree, recent };
+  mainWindow?.webContents.send('workspace:opened', payload);
+  return payload;
+}
+
+ipcMain.handle('workspace:open-path', async (_e, folderPath) => await openFolderPath(folderPath));
+
 /* ------------------------------------------------------------------ */
 /* IPC: files                                                           */
 /* ------------------------------------------------------------------ */
@@ -354,6 +368,8 @@ ipcMain.on('window:close', () => mainWindow?.close());
 app.whenReady().then(() => {
   buildMenu();
   createWindow();
+  // Expose the window for debugging and automation tooling.
+  globalThis.mainWindow = mainWindow;
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

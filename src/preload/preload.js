@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('glint', {
   openFolder: () => ipcRenderer.invoke('workspace:open-folder'),
   openFile: () => ipcRenderer.invoke('workspace:open-file'),
   getTree: (dir) => ipcRenderer.invoke('workspace:tree', dir),
+  openPath: (dir) => ipcRenderer.invoke('workspace:open-path', dir),
   getRecent: () => ipcRenderer.invoke('workspace:recent'),
   onWorkspaceOpened: (cb) => {
     const listener = (_e, payload) => cb(payload);
