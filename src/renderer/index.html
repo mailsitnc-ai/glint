@@ -7,459 +7,716 @@
   <style>
     :root {
       --bg: #0f0f12;
-      --surface: rgba(20, 20, 24, 0.6);
-      --surface-hover: rgba(30, 30, 36, 0.8);
-      --glass-border: rgba(255, 255, 255, 0.08);
+      --surface: rgba(20, 20, 24, 0.62);
+      --surface-strong: rgba(28, 28, 34, 0.88);
+      --surface-hover: rgba(255, 255, 255, 0.07);
+      --glass-border: rgba(255, 255, 255, 0.10);
       --text: #e8eaed;
       --text-muted: #94a3b8;
       --accent: #7c3aed;
-      --accent-glass: rgba(124, 58, 237, 0.35);
-      --sidebar: rgba(15, 15, 18, 0.7);
-      --tab-active: rgba(255, 255, 255, 0.1);
-      --tab-hover: rgba(255, 255, 255, 0.04);
-      --scrollbar: rgba(255, 255, 255, 0.06);
+      --accent-soft: rgba(124, 58, 237, 0.30);
+      --sidebar: rgba(15, 15, 18, 0.72);
+      --tab-active: rgba(255, 255, 255, 0.11);
+      --tab-hover: rgba(255, 255, 255, 0.05);
+      --scrollbar: rgba(255, 255, 255, 0.09);
       --danger: #ef4444;
+      --success: #22c55e;
+      --glass-blur: 22px;
+      --glass-opacity: 62%;
+      --font-size: 14px;
+      --font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+
+      /* syntax */
+      --syn-keyword: #c084fc;
+      --syn-string: #86efac;
+      --syn-number: #fbbf24;
+      --syn-comment: #64748b;
+      --syn-function: #60a5fa;
+      --syn-operator: #f472b6;
+      --syn-punct: #94a3b8;
+      --syn-const: #7dd3fc;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     html, body, #root {
       height: 100%;
       width: 100%;
+      overflow: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      overflow: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* --- Liquid glass utilities --- */
+    body.no-glass { --surface: rgba(20, 20, 24, 0.97); --sidebar: rgba(15, 15, 18, 0.98); }
+
+    /* ---------------- Liquid glass ---------------- */
     .glass {
       background: var(--surface);
-      backdrop-filter: blur(20px) saturate(1.4);
-      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
       border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      border-radius: 14px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.06);
     }
 
     .glass-input {
-      background: rgba(0,0,0,0.25);
+      background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--glass-border);
       color: var(--text);
-      border-radius: 8px;
-      padding: 6px 10px;
+      border-radius: 9px;
+      padding: 7px 11px;
       font-size: 13px;
+      font-family: inherit;
       outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      width: 100%;
     }
-    .glass-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
-    }
+    .glass-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .glass-input::placeholder { color: var(--text-muted); }
 
-    /* --- Layout --- */
-    #root {
-      display: flex;
-      flex-direction: column;
-    }
+    /* ---------------- Layout ---------------- */
+    #root { display: flex; flex-direction: column; }
 
-    /* Title bar */
     .titlebar {
-      height: 30px;
+      height: 38px;
       -webkit-app-region: drag;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 12px;
-      background: rgba(0,0,0,0.2);
+      padding: 0 14px;
+      background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid var(--glass-border);
       user-select: none;
-      z-index: 10;
+      z-index: 20;
+      flex-shrink: 0;
     }
     .titlebar .app-name {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      color: var(--text);
-      opacity: 0.9;
+      font-size: 12.5px;
+      font-weight: 650;
+      letter-spacing: .3px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 9px;
     }
-    .titlebar .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .titlebar .dot.red { background: #ff5f56; box-shadow: 0 0 0 1px rgba(255,95,86,0.35); }
-    .titlebar .dot.yellow { background: #ffbd2e; box-shadow: 0 0 0 1px rgba(255,189,46,0.35); }
-    .titlebar .dot.green { background: #27c93f; box-shadow: 0 0 0 1px rgba(39,201,63,0.35); }
+    .titlebar .logo {
+      width: 18px; height: 18px; border-radius: 5px;
+      background: linear-gradient(135deg, var(--accent), #38bdf8);
+      box-shadow: 0 0 12px var(--accent-soft);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: #fff; font-weight: 800;
+    }
+    .titlebar .workspace-name { color: var(--text-muted); font-weight: 450; font-size: 12px; }
+    .titlebar-spacer { flex: 1; }
+    .titlebar-actions { display: flex; gap: 6px; -webkit-app-region: no-drag; align-items: center; }
+    .icon-btn {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .icon-btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--glass-border); }
+    .icon-btn svg { width: 15px; height: 15px; }
 
-    .titlebar-controls {
-      display: flex;
-      gap: 6px;
-      -webkit-app-region: no-drag;
-    }
-    .win-btn {
-      width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer;
-      opacity: 0.9;
-    }
-    .win-btn.close { background: #ff5f56; }
-    .win-btn.minimize { background: #ffbd2e; }
-    .win-btn.maximize { background: #27c93f; }
+    .workspace { flex: 1; display: flex; overflow: hidden; position: relative; }
 
-    /* Main workspace */
-    .workspace {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-    }
-
-    /* Sidebar */
+    /* ---------------- Sidebar ---------------- */
     .sidebar {
-      width: 260px;
-      min-width: 200px;
+      width: 268px;
+      min-width: 180px;
+      max-width: 520px;
       background: var(--sidebar);
+      backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
       border-right: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
-      transition: width 0.2s ease, opacity 0.2s ease;
-      z-index: 5;
-    }
-    .sidebar.hidden { width: 0; opacity: 0; }
-    .sidebar-header {
-      height: 44px;
-      padding: 12px;
-      border-bottom: 1px solid var(--glass-border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: rgba(255,255,255,0.03);
-    }
-    .sidebar-header .icon { width: 16px; height: 16px; opacity: 0.7; }
-
-    .explorer {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-    .explorer-item {
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
+      transition: width .2s cubic-bezier(.4,0,.2,1), opacity .18s, min-width .2s;
       overflow: hidden;
-      color: var(--text);
     }
-    .explorer-item:hover { background: var(--surface-hover); }
-    .explorer-item.active { background: var(--accent-glass); color: #fff; }
-    .explorer-item .type-dir { color: var(--accent); opacity: 0.8; }
+    .sidebar.collapsed { width: 0; min-width: 0; opacity: 0; border-right-color: transparent; }
 
-    /* Editor area */
-    .editor-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      position: relative;
-    }
-
-    .tabbar {
-      height: 34px;
-      border-bottom: 1px solid var(--glass-border);
-      background: rgba(0,0,0,0.2);
+    .sidebar-header {
+      height: 40px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
-      padding: 0 10px;
-      gap: 4px;
-      overflow-x: auto;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0;
     }
-    .tab {
-      height: 28px;
-      padding: 0 12px;
-      border-radius: 6px;
-      background: var(--tab-hover);
-      border: 1px solid var(--glass-border);
+    .sidebar-header svg { width: 14px; height: 14px; }
+    .sidebar-header .spacer { flex: 1; }
+    .sidebar-header .mini-btn {
+      width: 20px; height: 20px; border-radius: 5px; border: none;
+      background: transparent; color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .sidebar-header .mini-btn:hover { background: var(--surface-hover); color: var(--text); }
+
+    .sidebar-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 0 14px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase;
+      color: var(--text-muted); padding: 12px 14px 5px; opacity: .8;
+    }
+
+    .tree-item {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
-      cursor: default;
+      padding: 4px 12px 4px 0;
+      font-size: 13px;
+      cursor: pointer;
       white-space: nowrap;
-      overflow: hidden;
+      color: var(--text);
+      border-left: 2px solid transparent;
+      user-select: none;
     }
-    .tab.active {
-      background: var(--tab-active);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
+    .tree-item:hover { background: var(--surface-hover); }
+    .tree-item.active { background: var(--accent-soft); border-left-color: var(--accent); }
+    .tree-item .chevron {
+      width: 12px; flex-shrink: 0; color: var(--text-muted);
+      transition: transform .15s; display: flex; align-items: center; justify-content: center;
     }
-    .tab:hover:not(.active) { background: var(--surface-hover); }
-    .tab-close {
-      width: 16px; height: 16px; border-radius: 50%; border: none;
-      background: rgba(255,255,255,0.15); color: var(--text);
-      font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      opacity: 0;
-    }
-    .tab:hover .tab-close { opacity: 1; }
+    .tree-item .chevron.open { transform: rotate(90deg); }
+    .tree-item .chevron.leaf { visibility: hidden; }
+    .tree-item .ico { width: 15px; text-align: center; flex-shrink: 0; font-size: 12px; }
+    .tree-item .ico.dir { color: var(--accent); }
+    .tree-item .name { overflow: hidden; text-overflow: ellipsis; }
+    .tree-item .size { margin-left: auto; font-size: 10.5px; color: var(--text-muted); padding-left: 8px; opacity: .65; }
 
-    .editor-wrap {
-      flex: 1;
+    .recent-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 14px; font-size: 12.5px; cursor: pointer; color: var(--text-muted);
+      white-space: nowrap; overflow: hidden;
+    }
+    .recent-item:hover { background: var(--surface-hover); color: var(--text); }
+    .recent-item .path { overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+
+    .empty-side {
+      padding: 26px 18px; text-align: center; color: var(--text-muted); font-size: 12.5px; line-height: 1.65;
+    }
+    .empty-side .big { font-size: 30px; margin-bottom: 8px; opacity: .55; }
+    .empty-side button {
+      margin-top: 12px; padding: 7px 14px; border-radius: 9px;
+      border: 1px solid var(--glass-border); background: var(--accent-soft);
+      color: var(--text); cursor: pointer; font-size: 12.5px; font-family: inherit;
+    }
+    .empty-side button:hover { background: var(--accent); }
+
+    /* ---------------- Editor area ---------------- */
+    .editor-area { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+
+    .tabbar {
+      height: 36px;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.22);
+      display: flex;
+      align-items: stretch;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .tabbar::-webkit-scrollbar { height: 0; }
+    .tab {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 10px 0 13px;
+      border-right: 1px solid var(--glass-border);
+      font-size: 12.5px;
+      white-space: nowrap;
+      cursor: pointer;
+      color: var(--text-muted);
+      background: transparent;
       position: relative;
+      max-width: 220px;
+    }
+    .tab:hover { background: var(--tab-hover); color: var(--text); }
+    .tab.active { background: var(--tab-active); color: var(--text); }
+    .tab.active::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    }
+    .tab .tab-name { overflow: hidden; text-overflow: ellipsis; }
+    .tab .dirty { color: var(--text); font-size: 15px; line-height: 1; }
+    .tab .tab-close {
+      width: 17px; height: 17px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.13); color: var(--text);
+      font-size: 13px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; flex-shrink: 0;
+    }
+    .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+    .tab .tab-close:hover { background: var(--danger); }
+    .tab-empty { display: flex; align-items: center; padding: 0 16px; font-size: 12.5px; color: var(--text-muted); opacity: .7; }
+
+    /* find bar */
+    .findbar {
+      height: 38px;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(0,0,0,0.3);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+    .findbar.open { display: flex; }
+    .findbar .glass-input { width: 220px; padding: 4px 9px; font-size: 12.5px; }
+    .findbar .match-count { font-size: 11.5px; color: var(--text-muted); min-width: 78px; }
+    .findbar .spacer { flex: 1; }
+
+    /* editor body */
+    .editor-body { flex: 1; display: flex; overflow: hidden; position: relative; background: var(--bg); }
+
+    .gutter {
+      width: 58px;
+      flex-shrink: 0;
+      padding: 14px 10px 14px 0;
+      text-align: right;
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      line-height: 1.55;
+      color: #4b5563;
+      background: rgba(0,0,0,0.18);
+      border-right: 1px solid rgba(255,255,255,0.04);
       overflow: hidden;
-      background: var(--bg);
+      user-select: none;
+    }
+    .gutter .ln { display: block; height: calc(var(--font-size) * 1.55); }
+    .gutter .ln.active-ln { color: var(--text); }
+
+    .code-wrap { flex: 1; position: relative; overflow: auto; }
+    .code-wrap.no-wrap { white-space: pre; }
+    .code-wrap.wrap { white-space: pre-wrap; word-break: break-word; }
+
+    .code-layer {
+      margin: 0;
+      padding: 14px 20px;
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      line-height: 1.55;
+      tab-size: 2;
+      min-height: 100%;
+      min-width: 100%;
+      width: max-content;
+    }
+    .code-layer.wrap { width: 100%; }
+
+    .highlight { position: absolute; inset: 0; pointer-events: none; }
+    .highlight code {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      white-space: inherit;
+      display: block;
+      padding: 14px 20px;
     }
 
-    #editor {
+    #editorInput {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
-      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
-      font-size: 14px;
-      line-height: 1.5;
       background: transparent;
-      color: var(--text);
+      color: transparent;
+      caret-color: var(--accent);
       border: none;
       outline: none;
       resize: none;
-      padding: 20px;
-      box-sizing: border-box;
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      line-height: 1.55;
+      padding: 14px 20px;
       tab-size: 2;
+      overflow: hidden;
+      white-space: pre;
+      z-index: 2;
     }
-    #editor::placeholder { color: var(--text-muted); }
+    #editorInput.wrap { white-space: pre-wrap; word-break: break-word; }
+    #editorInput::selection { background: var(--accent-soft); }
 
+    .tk-keyword { color: var(--syn-keyword); }
+    .tk-string { color: var(--syn-string); }
+    .tk-number { color: var(--syn-number); }
+    .tk-comment { color: var(--syn-comment); font-style: italic; }
+    .tk-function { color: var(--syn-function); }
+    .tk-operator { color: var(--syn-operator); }
+    .tk-punct { color: var(--syn-punct); }
+    .tk-const { color: var(--syn-const); }
+
+    .cursor-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: calc(var(--font-size) * 1.55);
+      background: rgba(255,255,255,0.035);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .find-highlight { background: rgba(250, 204, 21, 0.32); border-radius: 2px; }
+    .find-highlight.current { background: rgba(249, 115, 22, 0.55); }
+
+    /* placeholder */
+    .editor-placeholder {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: var(--text-muted); text-align: center; gap: 12px; pointer-events: none;
+    }
+    .editor-placeholder .big { font-size: 46px; opacity: .5; }
+    .editor-placeholder h2 { font-size: 19px; font-weight: 600; color: var(--text); }
+    .editor-placeholder p { font-size: 13.5px; max-width: 380px; line-height: 1.6; }
+    .editor-placeholder .keys { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+    .editor-placeholder kbd {
+      background: var(--surface-strong); border: 1px solid var(--glass-border);
+      border-radius: 6px; padding: 3px 8px; font-size: 11.5px; font-family: var(--font-family);
+    }
+
+    /* status bar */
     .statusbar {
       height: 26px;
-      background: rgba(0,0,0,0.3);
+      background: rgba(0,0,0,0.35);
       border-top: 1px solid var(--glass-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 12px;
-      font-size: 11px;
+      font-size: 11.5px;
       color: var(--text-muted);
+      flex-shrink: 0;
     }
-    .statusbar .right { display: flex; gap: 16px; }
+    .statusbar .right { display: flex; gap: 16px; align-items: center; }
+    .statusbar .accent-badge { color: var(--accent); font-weight: 600; }
+    .statusbar .clickable { cursor: pointer; padding: 0 4px; border-radius: 4px; }
+    .statusbar .clickable:hover { background: var(--surface-hover); color: var(--text); }
 
-    /* Empty state */
-    .empty {
+    /* ---------------- Command palette ---------------- */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 100;
+    }
+    .overlay.open { display: flex; }
+    .palette {
+      margin-top: 11vh;
+      width: 620px;
+      max-width: 92vw;
+      background: var(--surface-strong);
+      backdrop-filter: blur(30px) saturate(1.6);
+      -webkit-backdrop-filter: blur(30px) saturate(1.6);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-muted);
-      text-align: center;
-      gap: 10px;
+      max-height: 66vh;
     }
-    .empty h2 { font-size: 20px; font-weight: 600; color: var(--text); }
-    .empty p { font-size: 14px; }
+    .palette-input {
+      background: transparent; border: none; outline: none;
+      padding: 15px 18px; font-size: 15px; color: var(--text);
+      border-bottom: 1px solid var(--glass-border); font-family: inherit;
+    }
+    .palette-input::placeholder { color: var(--text-muted); }
+    .palette-list { overflow-y: auto; padding: 6px; }
+    .palette-item {
+      padding: 9px 13px; border-radius: 9px; cursor: pointer;
+      display: flex; align-items: center; gap: 11px; font-size: 13.5px;
+    }
+    .palette-item:hover, .palette-item.selected { background: var(--accent-soft); }
+    .palette-item .cmd { color: var(--text-muted); font-size: 11.5px; margin-left: auto; font-family: var(--font-family); }
+    .palette-item .ico { width: 17px; text-align: center; opacity: .85; }
+    .palette-empty { padding: 22px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    /* ---------------- Settings / colour customisation ---------------- */
+    .settings-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 380px;
+      max-width: 94vw;
+      background: var(--surface-strong);
+      backdrop-filter: blur(30px) saturate(1.6);
+      -webkit-backdrop-filter: blur(30px) saturate(1.6);
+      border-left: 1px solid var(--glass-border);
+      box-shadow: -18px 0 60px rgba(0,0,0,0.55);
+      z-index: 110;
+      transform: translateX(100%);
+      transition: transform .26s cubic-bezier(.4,0,.2,1);
+      display: flex; flex-direction: column;
+    }
+    .settings-panel.open { transform: translateX(0); }
+    .settings-head {
+      padding: 16px 18px; border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 14px; font-weight: 650; flex-shrink: 0;
+    }
+    .settings-body { flex: 1; overflow-y: auto; padding: 16px 18px 30px; }
+    .settings-group { margin-bottom: 22px; }
+    .settings-group h3 {
+      font-size: 10.5px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 11px;
+    }
+    .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+    .field label { font-size: 13px; }
+    .field .hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .field input[type="color"] {
+      width: 46px; height: 30px; padding: 0; border: 1px solid var(--glass-border);
+      border-radius: 8px; background: transparent; cursor: pointer;
+    }
+    .field input[type="range"] { width: 140px; accent-color: var(--accent); }
+    .field select, .field input[type="number"], .field input[type="text"] {
+      background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: var(--text);
+      border-radius: 8px; padding: 5px 9px; font-size: 12.5px; font-family: inherit; outline: none;
+    }
+    .field select:focus, .field input:focus { border-color: var(--accent); }
+    .swatch-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .swatch {
+      width: 42px; height: 42px; border-radius: 11px; cursor: pointer;
+      border: 2px solid transparent; position: relative; overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+    .swatch.active { border-color: var(--text); }
+    .swatch .sw-bg { position: absolute; inset: 0; }
+    .swatch .sw-accent { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; border-radius: 8px 0 0 0; }
+    .btn-row { display: flex; gap: 9px; margin-top: 6px; }
+    .btn {
+      padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-family: inherit;
+      border: 1px solid var(--glass-border); background: var(--surface-hover);
+      color: var(--text); cursor: pointer; transition: all .15s;
+    }
+    .btn:hover { background: var(--accent-soft); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { filter: brightness(1.12); }
+    .toggle {
+      width: 40px; height: 22px; border-radius: 12px; border: none; cursor: pointer;
+      background: rgba(255,255,255,0.14); position: relative; transition: background .18s;
+    }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+      border-radius: 50%; background: #fff; transition: transform .18s;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%) translateY(16px);
+      background: var(--surface-strong); border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      padding: 9px 18px; border-radius: 11px; font-size: 12.5px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      opacity: 0; pointer-events: none; transition: all .22s; z-index: 200;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: rgba(239,68,68,0.6); color: #fca5a5; }
+
+    /* scrollbars */
+    ::-webkit-scrollbar { width: 11px; height: 11px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 6px; border: 3px solid transparent; background-clip: content-box; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); background-clip: content-box; }
 
-    /* Theme variants applied to body */
-    body.theme-glint-dark { --bg: #0f0f12; --surface: rgba(20, 20, 24, 0.6); }
-    body.theme-glint-light {
-      --bg: #f4f5f7;
-      --surface: rgba(255,255,255,0.6);
-      --text: #1e1e1e;
-      --text-muted: #555;
-      --sidebar: rgba(245,246,248,0.8);
-      --accent: #6d28d9;
-    }
-    body.theme-ocean { --bg: #0b1f30; --surface: rgba(11, 31, 48, 0.6); --accent: #38bdf8; }
-    body.theme-solarized {
-      --bg: #fdf6e3;
-      --surface: rgba(253, 246, 227, 0.7);
-      --text: #586e75;
-      --text-muted: #93a1a1;
-      --sidebar: rgba(253, 246, 227, 0.8);
-      --accent: #268bd2;
-      color: var(--text);
-    }
-    body.theme-solarized .glass { color: var(--text); }
-    body.theme-solarized #editor { color: var(--text); }
-    body.theme-solarized .explorer-item { color: var(--text); }
-    body.theme-solarized .statusbar { color: var(--text-muted); }
-    body.theme-solarized .titlebar .app-name { color: var(--text); }
-
+    ::selection { background: var(--accent-soft); }
   </style>
 </head>
-<body class="theme-glint-dark">
+<body>
   <div id="root">
+    <!-- Title bar -->
     <div class="titlebar">
       <div class="app-name">
-        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
-        Glint
+        <div class="logo">G</div>
+        <span>Glint</span>
+        <span class="workspace-name" id="workspaceName"></span>
       </div>
-      <div class="titlebar-controls">
-        <button class="win-btn minimize" onclick="window.electronAPI?ipcRenderer.send('minimize'):null" title="Minimize"></button>
-        <button class="win-btn maximize" title="Maximize"></button>
-        <button class="win-btn close" title="Close"></button>
+      <div class="titlebar-spacer"></div>
+      <div class="titlebar-actions">
+        <button class="icon-btn" id="btnOpenFolder" title="Open Folder (⌘O)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 4.5A1.5 1.5 0 013 3h3l1.5 1.5H13a1.5 1.5 0 011.5 1.5v6A1.5 1.5 0 0113 13H3a1.5 1.5 0 01-1.5-1.5v-7z"/></svg>
+        </button>
+        <button class="icon-btn" id="btnPalette" title="Command Palette (⇧⌘P)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h12M2 8h12M2 12.5h7"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSettings" title="Customise Colours (⇧⌘K)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4"/></svg>
+        </button>
+        <button class="icon-btn" id="btnToggleSidebar" title="Toggle Sidebar (⌘B)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M6 2.5v11"/></svg>
+        </button>
+        <button class="icon-btn window-control" id="btnMinimize" title="Minimize">−</button>
+        <button class="icon-btn window-control" id="btnMaximize" title="Toggle Full Screen">□</button>
+        <button class="icon-btn window-control close-control" id="btnClose" title="Close">×</button>
       </div>
     </div>
 
     <div class="workspace">
+      <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10M3 10l2-2m-2 2v-6m0 0l2 2m-2 2V6"/></svg>
-          Explorer
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5A1.5 1.5 0 013.5 3h3L8 4.5h4.5A1.5 1.5 0 0114 6v6a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12V4.5z"/></svg>
+          <span id="sidebarTitle">Explorer</span>
+          <div class="spacer"></div>
+          <button class="mini-btn" id="btnRefreshTree" title="Refresh">⟳</button>
         </div>
-        <div class="explorer" id="explorer">
-          <div class="empty">
-            <div style="font-size:28px;opacity:0.5">📂</div>
-            <h2>Open a folder</h2>
-            <p>File &gt; Open Folder to start editing</p>
-          </div>
-        </div>
+        <div class="sidebar-body" id="sidebarBody"></div>
       </aside>
 
+      <!-- Editor area -->
       <div class="editor-area">
         <div class="tabbar" id="tabbar">
-          <div class="tab active" style="flex:1;justify-content:center;color:var(--text-muted)">No editor</div>
+          <div class="tab-empty">No editor open</div>
         </div>
-        <div class="editor-wrap">
-          <textarea id="editor" placeholder="Open a file to start editing…" spellcheck="false"></textarea>
+
+        <div class="findbar" id="findbar">
+          <input class="glass-input" id="findInput" placeholder="Find" spellcheck="false" />
+          <span class="match-count" id="matchCount">0 results</span>
+          <button class="icon-btn" id="findPrev" title="Previous (⇧⏎)">↑</button>
+          <button class="icon-btn" id="findNext" title="Next (⏎)">↓</button>
+          <div class="spacer"></div>
+          <button class="icon-btn" id="findReplaceToggle" title="Toggle Replace">⇄</button>
+          <input class="glass-input" id="replaceInput" placeholder="Replace" spellcheck="false" style="display:none" />
+          <button class="btn" id="replaceOne" style="display:none">Replace</button>
+          <button class="btn" id="replaceAll" style="display:none">All</button>
+          <button class="icon-btn" id="findClose" title="Close (Esc)">✕</button>
         </div>
+
+        <div class="editor-body">
+          <div class="gutter" id="gutter"></div>
+          <div class="code-wrap no-wrap" id="codeWrap">
+            <div class="cursor-line" id="cursorLine" style="display:none"></div>
+            <div class="highlight"><code id="highlightCode"></code></div>
+            <textarea id="editorInput" spellcheck="false" wrap="off"></textarea>
+            <div class="editor-placeholder" id="placeholder">
+              <div class="big">✦</div>
+              <h2>Glint</h2>
+              <p>Open a folder or file to start editing. Everything stays local on your machine.</p>
+              <div class="keys">
+                <kbd>⌘O</kbd><span style="align-self:center;font-size:12px;color:var(--text-muted)">Open folder</span>
+                <kbd>⇧⌘P</kbd><span style="align-self:center;font-size:12px;color:var(--text-muted)">Commands</span>
+                <kbd>⇧⌘K</kbd><span style="align-self:center;font-size:12px;color:var(--text-muted)">Colours</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="statusbar">
-          <div id="status-left">UTF-8 &nbsp;|&nbsp; Spaces: 2</div>
-          <div class="right" id="status-right">Glint 0.1.0</div>
+          <div id="statusLeft">Ready</div>
+          <div class="right">
+            <span id="statusPos">Ln 1, Col 1</span>
+            <span id="statusIndent">Spaces: 2</span>
+            <span id="statusEncoding">UTF-8</span>
+            <span id="statusLang">Plain Text</span>
+            <span class="accent-badge" id="statusTheme">Glint Dark</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <script>
-    const { ipcRenderer } = require('electron');
-    const explorer = document.getElementById('explorer');
-    const editor = document.getElementById('editor');
-    const tabbar = document.getElementById('tabbar');
-    const statusLeft = document.getElementById('status-left');
+  <!-- Command palette -->
+  <div class="overlay" id="paletteOverlay">
+    <div class="palette glass">
+      <input class="palette-input" id="paletteInput" placeholder="Type a command…" spellcheck="false" />
+      <div class="palette-list" id="paletteList"></div>
+    </div>
+  </div>
 
-    let currentFolder = null;
-    let openFiles = []; // {path, name}
-    let activePath = null;
+  <!-- Settings / colour customisation -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-head">
+      <span>Customise Glint</span>
+      <button class="icon-btn" id="settingsClose" title="Close">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-group">
+        <h3>Theme</h3>
+        <div class="swatch-row" id="themeSwatches"></div>
+      </div>
 
-    // Init settings
-    window.electronAPI.getSettings().then((s) => {
-      if (s.theme) document.body.className = 'theme-' + s.theme;
-    });
+      <div class="settings-group">
+        <h3>Colours</h3>
+        <div class="field">
+          <div><label for="cAccent">Accent</label><div class="hint">Buttons, highlights, cursor</div></div>
+          <input type="color" id="cAccent" value="#7c3aed" />
+        </div>
+        <div class="field">
+          <div><label for="cBg">Background</label><div class="hint">Editor backdrop</div></div>
+          <input type="color" id="cBg" value="#0f0f12" />
+        </div>
+        <div class="field">
+          <div><label for="cText">Text</label><div class="hint">Primary foreground colour</div></div>
+          <input type="color" id="cText" value="#e8eaed" />
+        </div>
+        <div class="field">
+          <div><label for="cMuted">Muted text</label><div class="hint">Secondary / dimmed text</div></div>
+          <input type="color" id="cMuted" value="#94a3b8" />
+        </div>
+      </div>
 
-    // Open folder (menu sends 'open-folder' via ipc; also wire button)
-    async function openFolder() {
-      const { dialog } = await import('electron');
-      // renderer can't open dialog directly; ask main
-      ipcRenderer.send('open-folder');
-    }
+      <div class="settings-group">
+        <h3>Liquid glass</h3>
+        <div class="field">
+          <div><label>Enable glass effect</label><div class="hint">Turn off for solid surfaces</div></div>
+          <button class="toggle on" id="tGlass"></button>
+        </div>
+        <div class="field">
+          <div><label>Blur</label><div class="hint">Backdrop blur strength</div></div>
+          <input type="range" id="rBlur" min="0" max="50" value="22" />
+        </div>
+        <div class="field">
+          <div><label>Surface opacity</label><div class="hint">Glass panel transparency</div></div>
+          <input type="range" id="rOpacity" min="20" max="100" value="62" />
+        </div>
+      </div>
 
-    window.electronAPI.onFolderOpened((data) => {
-      currentFolder = data;
-      renderExplorer(data.entries);
-      editor.disabled = false;
-      editor.placeholder = `Editing in ${data.name}`;
-      statusLeft.textContent = data.path + '  |  UTF-8  |  Spaces: 2';
-    });
+      <div class="settings-group">
+        <h3>Editor</h3>
+        <div class="field">
+          <div><label>Font size</label><div class="hint">In pixels</div></div>
+          <input type="number" id="nFontSize" min="9" max="28" value="14" />
+        </div>
+        <div class="field">
+          <div><label>Font family</label><div class="hint">Monospace typeface</div></div>
+          <select id="sFontFamily">
+            <option value="Menlo">Menlo</option>
+            <option value="Monaco">Monaco</option>
+            <option value="Courier New">Courier New</option>
+            <option value="SF Mono">SF Mono</option>
+            <option value="JetBrains Mono">JetBrains Mono</option>
+          </select>
+        </div>
+        <div class="field">
+          <div><label>Tab size</label><div class="hint">Spaces per indent level</div></div>
+          <input type="number" id="nTabSize" min="2" max="8" value="2" />
+        </div>
+        <div class="field">
+          <div><label>Word wrap</label><div class="hint">Wrap long lines</div></div>
+          <button class="toggle" id="tWrap"></button>
+        </div>
+      </div>
 
-    async function renderExplorer(entries) {
-      explorer.innerHTML = '';
-      if (!entries || entries.length === 0) {
-        explorer.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--text-muted)">Empty folder</div>';
-        return;
-      }
-      [...entries].sort((a,b) => (a.type===b.type ? a.name.localeCompare(b.name) : a.type==='directory'?-1:1))
-        .forEach(e => {
-          const div = document.createElement('div');
-          div.className = 'explorer-item';
-          div.innerHTML = `<span class="${e.type==='directory'?'type-dir':''}">${e.type==='directory'?'📁':'📄'}</span>${e.name}`;
-          div.title = e.name;
-          div.onclick = () => openFile(e.name, e.type);
-          explorer.appendChild(div);
-        });
-    }
+      <div class="settings-group">
+        <div class="btn-row">
+          <button class="btn" id="btnResetSettings">Reset to defaults</button>
+          <button class="btn primary" id="btnSaveSettings">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    async function openFile(name, type) {
-      if (type === 'directory') return;
-      const filePath = currentFolder.path + '/' + name;
-      if (openFiles.find(f => f.path === filePath)) {
-        setActive(filePath); return;
-      }
-      try {
-        const content = await window.electronAPI.readFile(filePath);
-        openFiles.push({ path: filePath, name });
-        renderTabs();
-        setActive(filePath);
-        editor.value = content;
-        editor.disabled = false;
-        editor.focus();
-      } catch (err) {
-        alert('Could not read file: ' + err.message);
-      }
-    }
+  <div class="toast" id="toast"></div>
 
-    function renderTabs() {
-      tabbar.innerHTML = '';
-      openFiles.forEach(f => {
-        const tab = document.createElement('div');
-        tab.className = 'tab' + (f.path === activePath ? ' active' : '');
-        tab.innerHTML = `${f.name} <button class="tab-close" onclick="closeFile('${f.path.replace(/'/g,"\\'")}', event)">×</button>`;
-        tab.onclick = () => setActive(f.path);
-        tabbar.appendChild(tab);
-      });
-      if (openFiles.length === 0) {
-        tabbar.innerHTML = '<div class="tab" style="flex:1;justify-content:center;color:var(--text-muted)">No editor</div>';
-      }
-    }
-
-    function setActive(path) {
-      activePath = path;
-      const file = openFiles.find(f => f.path === path);
-      if (!file) return;
-      editor.value = '';
-      const content = window.electronAPI.readFile(path).then(c => { editor.value = c; });
-      renderTabs();
-      statusLeft.textContent = path + '  |  UTF-8  |  Spaces: 2';
-    }
-
-    window.closeFile = function(path, ev) {
-      ev.stopPropagation();
-      openFiles = openFiles.filter(f => f.path !== path);
-      if (activePath === path) {
-        activePath = openFiles[0]?.path || null;
-        editor.value = activePath ? '' : '';
-        if (activePath) {
-          window.electronAPI.readFile(activePath).then(c => editor.value = c);
-        } else {
-          editor.disabled = true;
-          editor.placeholder = 'Open a file to start editing…';
-        }
-      }
-      renderTabs();
-    };
-
-    editor.addEventListener('input', () => {
-      const tab = Array.from(tabbar.children).find(t => t.classList.contains('active'));
-      if (tab && !tab.textContent.includes('●')) tab.textContent = '● ' + (openFiles.find(f=>f.path===activePath)?.name||'') + ' ';
-    });
-
-    // Save via Ctrl+S
-    editor.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        if (!activePath) return;
-        window.electronAPI.writeFile(activePath, editor.value).then(() => {
-          const tab = Array.from(tabbar.children).find(t => t.classList.contains('active'));
-          if (tab) tab.textContent = tab.textContent.replace('● ','');
-          statusLeft.textContent = 'Saved ' + new Date().toLocaleTimeString();
-        });
-      }
-    });
-
-    // Expose for window controls (minimal)
-    window.ipcRenderer = ipcRenderer;
-  </script>
+  <script src="renderer.js"></script>
 </body>
 </html>
