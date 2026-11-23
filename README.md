@@ -1,14 +1,68 @@
+<div align="center">
+
+<img src="assets/icon.png" alt="Glint logo" width="140" />
+
 # Glint : Caelix IDE
 
-A VS Code-inspired code editor with a liquid-glass UI, full colour and font customisation, built-in AI with OmniRoute, collaboration, and developer workflow tools — all on an Electron shell.
+**A liquid-glass code editor with built-in AI, live collaboration and developer workflow tools.**
 
-> **Glint** is the editor. **Caelix** is the platform it runs on — the same relationship as Google's Antigravity and Antigravity IDE. This repository is the IDE build.
+![Platform](https://img.shields.io/badge/platform-macOS-1f6feb?style=flat-square)
+![Electron](https://img.shields.io/badge/Electron-38-47848f?style=flat-square&logo=electron&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.3.0-38bdf8?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
-Glint is built around three principles:
+[Quick start](#quick-start) · [Features](#feature-sets) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Development](#development)
 
-- **Liquid glass UI** — translucent, blurred surfaces (`backdrop-filter`) that tint with your desktop. A "liquid mode" refracts your actual desktop wallpaper behind the editor.
-- **Fully personalisable** — accent, background, foreground, muted text, glass blur and opacity, plus complete typography control (font family, size, weight, line height, letter spacing, ligatures, and custom font import).
-- **Local-first** — every file operation runs on your machine. Nothing is uploaded unless you explicitly deploy.
+</div>
+
+---
+
+## Overview
+
+Glint is a VS Code-inspired editor on an Electron shell. **Glint** is the editor; **Caelix** is the platform it runs on, the same relationship as Google's Antigravity and Antigravity IDE. This repository is the IDE build.
+
+| | |
+|---|---|
+| **Liquid glass UI** | Translucent, blurred surfaces that tint with your desktop. Liquid mode refracts your actual wallpaper behind the editor. |
+| **Fully personalisable** | Accent, background, foreground, glass blur and opacity, plus full typography control and custom font import. |
+| **AI-first** | 14 providers, objective-based routing with OmniRoute, inline ghost text, explain / refactor / docstrings / commit messages. |
+| **Local-first** | Every file operation runs on your machine. Nothing is uploaded unless you explicitly deploy. |
+
+## Quick start
+
+```bash
+git clone https://github.com/mailsitnc-ai/glint.git
+cd glint
+npm install
+npm start
+```
+
+Requires Node.js 18+ and macOS (Apple Silicon or Intel). To get AI working with no setup, pick **Pollinations.ai** or an `-free` model on **OpenCode Zen**; no API key needed.
+
+### Build the app
+
+```bash
+npm run pack       # unpacked app  -> dist/mac-arm64/Glint.app
+npm run dist       # dmg + zip installers
+```
+
+> **Opening an unsigned build:** macOS Gatekeeper blocks apps that aren't signed with an Apple Developer ID. Right-click `Glint.app` -> **Open** the first time, or run `xattr -cr Glint.app`.
+
+## Keyboard shortcuts
+
+| Action | Shortcut |
+|---|---|
+| Open folder | `⌘O` |
+| Open file | `⇧⌘O` |
+| Save / Save as | `⌘S` / `⇧⌘S` |
+| Command palette | `⇧⌘P` |
+| Find / Replace | `⌘F` / `⇧⌘F` |
+| Toggle sidebar | `⌘B` |
+| Toggle terminal panel | `⌘J` |
+| Zen mode | `⌘K` |
+| Liquid mode | `⌘⌥L` |
+| Settings | `⇧⌘K` |
+| New window | `⇧⌘N` |
 
 ---
 
@@ -158,10 +212,11 @@ The renderer runs sandboxed with `contextIsolation: true` and `nodeIntegration: 
 
 ```bash
 npm install
-npm start          # run the app
+npm start          # run in development
 npm run pack       # package to dist/mac-arm64/Glint.app
-npm run dist       # build distributable dmg/zip
 ```
+
+The app icon lives in `assets/` (`icon.png`, `icon.icns`); the titlebar logo is `src/renderer/assets/logo.png`.
 
 ## Verification
 

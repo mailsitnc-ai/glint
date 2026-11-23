@@ -50,6 +50,7 @@ function createWindow() {
     backgroundColor: settings.settings.bg,
     show: false,
     title: 'Glint : Caelix IDE',
+    icon: path.join(__dirname, '../../assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
@@ -511,6 +512,7 @@ ipcMain.on('window:close', () => mainWindow?.close());
 app.whenReady().then(async () => {
   await settings.init();
   await archive.init();
+  if (isMac && app.dock) app.dock.setIcon(path.join(__dirname, '../../assets/icon.png'));
   buildMenu();
   createWindow();
 

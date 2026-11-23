@@ -5,14 +5,24 @@
     "identity": null,
     "hardenedRuntime": false,
     "gatekeeperAssess": false,
-    "target": ["dir"],
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "target": [
+      "dir"
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "icon": "assets/icon.icns"
   },
   "dmg": {
-    "window": { "width": 540, "height": 380 },
+    "window": {
+      "width": 540,
+      "height": 380
+    },
     "iconSize": 100
   },
-  "files": ["src/**/*", "package.json"],
+  "files": [
+    "src/**/*",
+    "assets/icon.png",
+    "package.json"
+  ],
   "directories": {
     "app": ".",
     "buildResources": "assets"
