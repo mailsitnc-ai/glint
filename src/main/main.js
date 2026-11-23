@@ -50,7 +50,7 @@ function createWindow() {
     backgroundColor: settings.settings.bg,
     show: false,
     title: 'Glint : Caelix IDE',
-    icon: path.join(__dirname, '../../assets/icon.png'),
+    icon: path.join(__dirname, process.platform === 'win32' ? '../../assets/icon.ico' : '../../assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,

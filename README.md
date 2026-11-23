@@ -43,7 +43,7 @@ Requires Node.js 18+ and macOS (Apple Silicon or Intel). To get AI working with 
 
 ```bash
 npm run pack       # unpacked app  -> dist/mac-arm64/Glint.app
-npm run dist       # dmg + zip installers
+npm run dmg        # build + create dist/Glint-<version>-arm64.dmg (drag-to-Applications)
 ```
 
 > **Opening an unsigned build:** macOS Gatekeeper blocks apps that aren't signed with an Apple Developer ID. Right-click `Glint.app` -> **Open** the first time, or run `xattr -cr Glint.app`.

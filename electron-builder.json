@@ -6,7 +6,8 @@
     "hardenedRuntime": false,
     "gatekeeperAssess": false,
     "target": [
-      "dir"
+      "dmg",
+      "zip"
     ],
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "icon": "assets/icon.icns"
@@ -21,10 +22,18 @@
   "files": [
     "src/**/*",
     "assets/icon.png",
+    "assets/icon.ico",
     "package.json"
   ],
   "directories": {
     "app": ".",
     "buildResources": "assets"
+  },
+  "win": {
+    "icon": "assets/icon.ico",
+    "target": [
+      "nsis",
+      "zip"
+    ]
   }
 }

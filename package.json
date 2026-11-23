@@ -1,7 +1,7 @@
 {
   "name": "glint",
   "productName": "Glint : Caelix IDE",
-  "description": "Glint : Caelix IDE — a VS Code-inspired code editor with liquid glass UI, built-in AI, collaboration, and developer workflow tools.",
+  "description": "Glint : Caelix IDE \u2014 a VS Code-inspired code editor with liquid glass UI, built-in AI, collaboration, and developer workflow tools.",
   "version": "0.3.0",
   "author": "mailsitnc-ai",
   "license": "MIT",
@@ -10,7 +10,8 @@
     "start": "electron .",
     "dev": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dmg": "npm run pack && bash scripts/make-dmg.sh"
   },
   "devDependencies": {
     "electron": "^38.8.6",

@@ -1,3 +1,4 @@
+if (/Mac/i.test(navigator.platform)) document.body.classList.add('platform-mac');
 /* ==========================================================================
    Glint renderer entry point.
    Wires the editor engine, themes, AI, collaboration, intelligence and
