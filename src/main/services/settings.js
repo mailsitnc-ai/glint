@@ -48,13 +48,27 @@ const DEFAULT_SETTINGS = {
   backgroundAnalysis: true,
 
   /* ai */
-  aiProvider: 'none', // none | local | cloud
-  aiLocalEndpoint: 'http://127.0.0.1:11434',
-  aiLocalModel: 'llama3.2',
-  aiCloudEndpoint: 'https://api.openai.com/v1',
-  aiCloudModel: 'gpt-4o-mini',
-  aiCloudKey: '',
+  aiProvider: 'kilo', // kilo | pollinations | openrouter | nvidia | deepinfra | local | custom
+  aiModel: '',        // empty = use the provider default
+  aiEndpoint: '',     // only used when aiUseCustomEndpoint is on
+  aiUseCustomEndpoint: false,
+  aiFimModel: 'mistralai/codestral',
+  kiloKey: '',
+  pollinationsKey: '',
+  openrouterKey: '',
+  nvidiaKey: '',
+  deepinfraKey: '',
+  customKey: '',
+  zenKey: '',
+  coarenaKey: '',
+  groqKey: '',
+  geminiKey: '',
+  numesKey: '',
+  abliterationKey: '',
+  omnirouteKey: '',
   aiGhostText: true,
+  omnirouteObjective: 'auto',
+  omnirouteBase: '',
   aiAutoContext: true,
   aiContextLines: 120,
 

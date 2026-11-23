@@ -8,14 +8,20 @@ export class AIModule {
     this.onStatus = options.onStatus || (() => {});
     this.onGhostText = options.onGhostText || (() => {});
     this.history = [];
-    this.status = { configured: false, provider: 'none', endpoint: '', model: '' };
+    this.status = { configured: false, provider: 'none', endpoint: '', model: '', hasKey: false };
+    this.providers = [];
+    this.archived = [];
+    this.omni = null;
     this.ghostTimer = null;
     this.lastGhostRequest = 0;
     this.contextFiles = [];
   }
 
   async init() {
+    this.providers = await this.api.aiProviders();
     await this.refreshStatus();
+    await this.listArchived();
+    await this.omniStatus().catch(() => {});
     return this.status;
   }
 
@@ -27,6 +33,68 @@ export class AIModule {
 
   get isReady() {
     return Boolean(this.status.configured);
+  }
+
+  /** Providers that can be selected in the UI. */
+  async listProviders() {
+    if (!this.providers) this.providers = await this.api.aiProviders();
+    return this.providers;
+  }
+
+  /** Models offered by the currently selected provider. */
+  async listModels() {
+    return await this.api.aiModels();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Archive                                                             */
+  /* ------------------------------------------------------------------ */
+
+  /** Archive a model so it disappears from the pickers. */
+  async archiveModel(providerId, modelId, reason) {
+    const result = await this.api.aiArchive(providerId, modelId, reason);
+    if (result.ok) this.archived = await this.listArchived();
+    return result;
+  }
+
+  /** Bring an archived model back. */
+  async unarchiveModel(providerId, modelId) {
+    const result = await this.api.aiUnarchive(providerId, modelId);
+    if (result.ok) this.archived = await this.listArchived();
+    return result;
+  }
+
+  /** All archived models. */
+  async listArchived() {
+    const result = await this.api.aiArchived();
+    this.archived = result.archived || [];
+    return this.archived;
+  }
+
+  async clearArchive() {
+    const result = await this.api.aiArchiveClear();
+    this.archived = [];
+    return result;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* OmniRoute                                                           */
+  /* ------------------------------------------------------------------ */
+
+  /** Current OmniRoute status and objectives. */
+  async omniStatus() {
+    this.omni = await this.api.aiOmniStatus();
+    return this.omni;
+  }
+
+  /** Ranked route candidates for an objective. */
+  async omniCandidates(objective) {
+    return await this.api.aiOmniCandidates(objective);
+  }
+
+  /** Route a chat request through OmniRoute. */
+  async omniChat(messages, options = {}) {
+    return await this.api.aiOmniChat(messages, options);
   }
 
   /* ------------------------------------------------------------------ */

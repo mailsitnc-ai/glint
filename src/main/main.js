@@ -4,7 +4,10 @@ const fs = require('node:fs/promises');
 
 const { SettingsStore } = require('./services/settings');
 const { WorkspaceService } = require('./services/workspace');
-const { AIService, lineDiff } = require('./services/ai');
+const { AIService, lineDiff, listProviders } = require('./services/ai');
+const { ArchiveService } = require('./services/archive');
+const { OmniRouteService } = require('./services/omniroute');
+const { OMNI_OBJECTIVES } = require('./services/providers');
 const { CollaborationService } = require('./services/collaboration');
 const { IntelligenceService } = require('./services/intelligence');
 const { WorkflowService } = require('./services/workflow');
@@ -17,12 +20,19 @@ let mainWindow = null;
 
 const settings = new SettingsStore(app.getPath('userData'));
 const workspace = new WorkspaceService();
-const ai = new AIService(settings);
+const archive = new ArchiveService(app.getPath('userData'));
+const ai = new AIService(settings, archive);
 const collaboration = new CollaborationService(settings);
 const intelligence = new IntelligenceService();
 const workflow = new WorkflowService(settings);
 const themes = new ThemesService(app.getPath('userData'));
 const git = new GitService();
+const omniroute = new OmniRouteService({
+  ai,
+  archive,
+  getSettings: () => settings.settings,
+  onEvent: (event) => mainWindow?.webContents.send('ai:route-event', event),
+});
 
 /* ------------------------------------------------------------------ */
 /* Window                                                              */
@@ -39,7 +49,7 @@ function createWindow() {
     trafficLightPosition: isMac ? { x: 14, y: 12 } : undefined,
     backgroundColor: settings.settings.bg,
     show: false,
-    title: 'Glint',
+    title: 'Glint : Caelix IDE',
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       nodeIntegration: false,
@@ -75,9 +85,9 @@ function buildMenu() {
     ...(isMac
       ? [
           {
-            label: 'Glint',
+            label: 'Glint : Caelix IDE',
             submenu: [
-              { label: 'About Glint', click: () => dialog.showMessageBox(mainWindow, { message: 'Glint 0.2.0', detail: 'A liquid-glass code editor.' }) },
+              { label: 'About Glint : Caelix IDE', click: () => dialog.showMessageBox(mainWindow, { message: 'Glint : Caelix IDE', detail: 'Version 0.3.0 — a liquid-glass code editor with built-in AI, collaboration and developer workflow tools.' }) },
               { type: 'separator' },
               { role: 'services' },
               { type: 'separator' },
@@ -314,13 +324,33 @@ ipcMain.handle('file:watch', async (_e, filePath) => workspace.watchFile(filePat
 /* IPC: AI                                                             */
 /* ------------------------------------------------------------------ */
 
+ipcMain.handle('ai:providers', async () => listProviders());
+
+/* Archive: hide a model from the pickers, or bring it back. */
+ipcMain.handle('ai:archive', async (_e, providerId, modelId, reason) =>
+  await archive.archiveModel(providerId, modelId, reason));
+ipcMain.handle('ai:unarchive', async (_e, providerId, modelId) =>
+  await archive.unarchiveModel(providerId, modelId));
+ipcMain.handle('ai:archived', async () => ({ ok: true, archived: archive.list() }));
+ipcMain.handle('ai:archive-clear', async () => await archive.clear());
+
+/* OmniRoute: objective-based routing across connected providers. */
+ipcMain.handle('ai:omniroute-status', async () => omniroute.status());
+ipcMain.handle('ai:omniroute-objectives', async () => OMNI_OBJECTIVES);
+ipcMain.handle('ai:omniroute-candidates', async (_e, objective) =>
+  await omniroute.routeCandidates(objective));
+ipcMain.handle('ai:omniroute-chat', async (_e, messages, options) =>
+  await omniroute.routeChat(messages, options || {}));
+
 ipcMain.handle('ai:status', async () => ({
   configured: ai.isConfigured(),
   ...ai.providerInfo(),
+  quota: ai.quotaStatus(),
 }));
 
 ipcMain.handle('ai:models', async () => await ai.listModels());
 ipcMain.handle('ai:health', async () => await ai.healthCheck());
+ipcMain.handle('ai:fim', async (_e, payload) => await ai.fim(payload));
 
 ipcMain.handle('ai:chat', async (_e, messages, options) => await ai.chat(messages, options));
 
@@ -480,6 +510,7 @@ ipcMain.on('window:close', () => mainWindow?.close());
 
 app.whenReady().then(async () => {
   await settings.init();
+  await archive.init();
   buildMenu();
   createWindow();
 

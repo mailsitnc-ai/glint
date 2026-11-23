@@ -29,6 +29,7 @@ const state = {
   paletteIndex: 0,
   paletteItems: [],
   attachContext: false,
+  useOmniRoute: false,
   chatMessages: [],
   searchResults: [],
   gitStatus: null,
@@ -118,6 +119,8 @@ function setActiveView(view) {
   if (view === 'ai') {
     dom.aiPanel.classList.add('open');
     dom.sidebar.classList.remove('collapsed');
+    dom.sidebarTitle.textContent = 'AI';
+    renderAiSidebar();
     return;
   }
   dom.aiPanel.classList.remove('open');
@@ -305,8 +308,272 @@ function renderSidebar() {
   if (view === 'database') return renderDatabaseSidebar();
   if (view === 'api') return renderApiSidebar();
   if (view === 'marketplace') return renderMarketplaceSidebar();
+  if (view === 'ai') return renderAiSidebar();
 
   renderExplorerSidebar();
+}
+
+/**
+ * AI sidebar: shows the active provider, the built-in provider catalogue and
+ * the models the selected provider offers — all without opening Settings.
+ */
+function renderAiSidebar() {
+  dom.sidebarBody.innerHTML = '';
+  const s = themeManager.settings;
+
+  // --- Active provider summary ---
+  const statusBox = document.createElement('div');
+  statusBox.style.padding = '12px 14px';
+  statusBox.innerHTML = `
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+      <span class="dot" id="aiSideDot" style="width:7px;height:7px;border-radius:50%;background:var(--text-muted)"></span>
+      <span style="font-size:13px;font-weight:600" id="aiSideProvider">${escapeHtml(s.aiProvider || 'kilo')}</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-muted);line-height:1.5" id="aiSideModel">${escapeHtml(s.aiModel || 'provider default')}</div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn" id="aiSideHealth" style="flex:1">Test</button>
+      <button class="btn" id="aiSideConfigure" style="flex:1">Configure</button>
+    </div>`;
+  dom.sidebarBody.appendChild(statusBox);
+
+  $('aiSideHealth').onclick = async () => {
+    const result = await ai.healthCheck();
+    const dot = $('aiSideDot');
+    if (dot) dot.style.background = result.ok ? 'var(--success)' : 'var(--danger)';
+    toast(result.ok ? `Provider ready: ${result.reply}` : result.error || 'Provider unreachable', !result.ok);
+  };
+  $('aiSideConfigure').onclick = openSettings;
+
+  // --- OmniRoute objective picker ---
+  const omniLabel = document.createElement('div');
+  omniLabel.className = 'section-label';
+  omniLabel.textContent = 'OmniRoute Objective';
+  dom.sidebarBody.appendChild(omniLabel);
+
+  const omniBox = document.createElement('div');
+  omniBox.id = 'sideOmniBox';
+  omniBox.style.padding = '0 14px 4px';
+  dom.sidebarBody.appendChild(omniBox);
+
+  const renderOmni = async () => {
+    const status = await ai.omniStatus().catch(() => null);
+    if (!status || !omniBox.isConnected) return;
+    omniBox.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'omni-list';
+    for (const objective of status.objectives || []) {
+      const btn = document.createElement('button');
+      btn.className = 'omni-chip' + (objective.id === status.objective ? ' active' : '');
+      btn.textContent = objective.label;
+      btn.title = objective.desc;
+      btn.onclick = async () => {
+        await themeManager.update({ omnirouteObjective: objective.id });
+        await ai.omniStatus();
+        renderOmni();
+        toast(`OmniRoute objective: ${objective.label}`);
+      };
+      wrap.appendChild(btn);
+    }
+    omniBox.appendChild(wrap);
+
+    const info = document.createElement('div');
+    info.className = 'provider-meta';
+    info.textContent = `${status.connected.length} provider${status.connected.length === 1 ? '' : 's'} connected · ${status.connected.join(', ') || 'none'}`;
+    omniBox.appendChild(info);
+  };
+  renderOmni();
+
+  // --- Built-in providers ---
+  const providerLabel = document.createElement('div');
+  providerLabel.className = 'section-label';
+  providerLabel.textContent = 'Providers';
+  dom.sidebarBody.appendChild(providerLabel);
+
+  const providerList = document.createElement('div');
+  providerList.id = 'sideProviderList';
+  dom.sidebarBody.appendChild(providerList);
+
+  // --- Models for the active provider ---
+  const modelLabel = document.createElement('div');
+  modelLabel.className = 'section-label';
+  modelLabel.textContent = 'Models';
+  dom.sidebarBody.appendChild(modelLabel);
+
+  const modelBox = document.createElement('div');
+  modelBox.id = 'sideModelList';
+  modelBox.style.padding = '0 14px';
+  dom.sidebarBody.appendChild(modelBox);
+
+  const renderProviders = async () => {
+    const providers = await ai.listProviders();
+    const list = $('sideProviderList');
+    if (!list) return;
+    list.innerHTML = '';
+    for (const provider of providers) {
+      const keyField = provider.id === 'kilo' ? 'kiloKey'
+        : provider.id === 'pollinations' ? 'pollinationsKey'
+        : provider.id === 'openrouter' ? 'openrouterKey'
+        : provider.id === 'nvidia' ? 'nvidiaKey'
+        : provider.id === 'deepinfra' ? 'deepinfraKey'
+        : provider.id === 'custom' ? 'customKey' : '';
+      const hasKey = keyField ? Boolean(s[keyField]) : true;
+      const row = document.createElement('div');
+      row.className = 'provider-row' + (provider.id === s.aiProvider ? ' active' : '');
+      row.innerHTML = `
+        <div class="provider-row-main">
+          <span class="provider-row-name">${escapeHtml(provider.label)}</span>
+          <span class="provider-row-tag ${provider.auth === 'none' ? 'free' : provider.auth === 'required' && !hasKey ? 'needed' : 'ok'}">${provider.auth === 'none' ? 'no key' : provider.auth === 'required' ? (hasKey ? 'key ok' : 'needs key') : (hasKey ? 'key ok' : 'optional')}</span>
+        </div>
+        <div class="provider-row-desc">${escapeHtml(provider.description)}</div>`;
+      row.onclick = async () => {
+        themeManager.settings = { ...themeManager.settings, aiProvider: provider.id };
+        await themeManager.update({ aiProvider: provider.id });
+        await ai.refreshStatus();
+        renderAiSidebar();
+        toast(`${provider.label} selected`);
+      };
+      list.appendChild(row);
+    }
+  };
+
+  const renderModels = async () => {
+    const box = $('sideModelList');
+    if (!box) return;
+    box.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted);padding:4px 0">Loading models…</div>';
+    const result = await ai.listModels();
+    if (!box.isConnected) return;
+    box.innerHTML = '';
+    if (!result.ok) {
+      box.innerHTML = `<div style="font-size:11.5px;color:var(--text-muted);padding:4px 0">${escapeHtml(result.error || 'Could not load models')}</div>`;
+      return;
+    }
+    const models = result.models || [];
+    if (!models.length) {
+      box.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted);padding:4px 0">No models returned.</div>';
+      return;
+    }
+
+    // Show the provider default first, then free models, then the rest.
+    const provider = (await ai.listProviders()).find((p) => p.id === s.aiProvider);
+    const freeSuffix = provider?.freeModelSuffix;
+    const sorted = [...models].sort((a, b) => {
+      const aFree = freeSuffix && a.endsWith(freeSuffix) ? 0 : 1;
+      const bFree = freeSuffix && b.endsWith(freeSuffix) ? 0 : 1;
+      if (aFree !== bFree) return aFree - bFree;
+      return a.localeCompare(b);
+    });
+
+    const filter = document.createElement('input');
+    filter.className = 'glass-input';
+    filter.placeholder = `Filter ${models.length} models…`;
+    filter.style.margin = '0 0 8px';
+    filter.oninput = () => drawModels(filter.value.toLowerCase());
+    box.appendChild(filter);
+
+    const list = document.createElement('div');
+    list.id = 'sideModelItems';
+    box.appendChild(list);
+
+    const drawModels = (query) => {
+      list.innerHTML = '';
+      const shown = query ? sorted.filter((m) => m.toLowerCase().includes(query)) : sorted;
+      if (!shown.length) {
+        list.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted)">No models match.</div>';
+        return;
+      }
+      for (const model of shown.slice(0, 300)) {
+        const item = document.createElement('div');
+        const isFree = freeSuffix && model.endsWith(freeSuffix);
+        item.className = 'model-item' + (model === s.aiModel ? ' active' : '');
+        item.innerHTML = `<span class="model-name">${escapeHtml(model)}</span>${isFree ? '<span class="model-free">free</span>' : ''}
+          <button class="model-archive" title="Archive this model">⌫</button>`;
+        item.title = model;
+        item.onclick = async (e) => {
+          if (e.target.classList.contains('model-archive')) {
+            e.stopPropagation();
+            await ai.archiveModel(s.aiProvider, model, 'Archived by user');
+            toast(`Archived ${model}`);
+            renderAiSidebar();
+            return;
+          }
+          await themeManager.update({ aiModel: model });
+          await ai.refreshStatus();
+          renderAiSidebar();
+          toast(`Model set to ${model}`);
+        };
+        list.appendChild(item);
+      }
+      if (shown.length > 300) {
+        const more = document.createElement('div');
+        more.style.cssText = 'font-size:11px;color:var(--text-muted);padding:6px 0';
+        more.textContent = `+ ${shown.length - 300} more — refine the filter`;
+        list.appendChild(more);
+      }
+    };
+    drawModels('');
+  };
+
+  renderProviders();
+  renderModels();
+  renderArchivedModels();
+}
+
+/**
+ * Archived models section. Archived models are hidden from the pickers and
+ * never routed to, but can always be brought back.
+ */
+async function renderArchivedModels() {
+  const existing = $('sideArchivedList');
+  if (existing) existing.remove();
+
+  const archived = await ai.listArchived();
+  const container = document.createElement('div');
+  container.id = 'sideArchivedList';
+
+  const label = document.createElement('div');
+  label.className = 'section-label';
+  label.textContent = `Archived (${archived.length})`;
+  container.appendChild(label);
+
+  const box = document.createElement('div');
+  box.style.padding = '0 14px 16px';
+  container.appendChild(box);
+
+  if (!archived.length) {
+    box.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted)">No archived models. Hover a model and press ⌫ to archive it.</div>';
+    dom.sidebarBody.appendChild(container);
+    return;
+  }
+
+  const clearRow = document.createElement('div');
+  clearRow.style.marginBottom = '6px';
+  clearRow.innerHTML = '<button class="btn tiny" id="btnClearArchive">Restore all</button>';
+  box.appendChild(clearRow);
+
+  for (const entry of archived) {
+    const row = document.createElement('div');
+    row.className = 'model-item archived';
+    row.innerHTML = `<span class="model-name">${escapeHtml(entry.id)}</span>
+      <span class="model-provider">${escapeHtml(entry.provider)}</span>
+      <button class="model-restore" title="Bring this model back">↩</button>`;
+    row.title = entry.reason ? `${entry.reason} (${new Date(entry.at).toLocaleDateString()})` : entry.id;
+    row.onclick = async (e) => {
+      if (!e.target.classList.contains('model-restore')) return;
+      e.stopPropagation();
+      await ai.unarchiveModel(entry.provider, entry.id);
+      toast(`Restored ${entry.id}`);
+      renderAiSidebar();
+    };
+    box.appendChild(row);
+  }
+
+  dom.sidebarBody.appendChild(container);
+
+  $('btnClearArchive').onclick = async () => {
+    await ai.clearArchive();
+    toast('All models restored');
+    renderAiSidebar();
+  };
 }
 
 function renderExplorerSidebar() {
@@ -794,11 +1061,13 @@ function openBottomPanel(panel) {
     t.classList.toggle('active', t.dataset.panel === panel);
   });
   renderPanel(panel);
+  updateTerminalButtonState();
 }
 
 function closeBottomPanel() {
   state.bottomPanelOpen = false;
   dom.bottomPanel.classList.remove('open');
+  updateTerminalButtonState();
 }
 
 function renderPanel(panel) {
@@ -833,8 +1102,9 @@ function renderPanel(panel) {
 function renderTerminalPanel() {
   dom.panelToolbar.style.display = 'flex';
   dom.panelToolbar.innerHTML = `
-    <input class="glass-input" id="terminalInput" placeholder="Run a command…" style="flex:1" />
-    <button class="btn primary" id="terminalRun">Run</button>`;
+    <input class="glass-input" id="terminalInput" placeholder="Run a command in the workspace…" style="flex:1" autocomplete="off" spellcheck="false" />
+    <button class="btn primary" id="terminalRun">Run</button>
+    <button class="btn" id="terminalClear" title="Clear output">Clear</button>`;
   dom.panelBody.innerHTML = '<div class="terminal" id="terminalOutput"></div>';
 
   const run = async () => {
@@ -846,26 +1116,33 @@ function renderTerminalPanel() {
     const result = await workflow.runCommand(command);
     appendTerminalOutput(result);
   };
+
   $('terminalRun').onclick = run;
+  $('terminalClear').onclick = () => {
+    const output = $('terminalOutput');
+    if (output) output.innerHTML = '';
+  };
   $('terminalInput').onkeydown = (e) => {
     if (e.key === 'Enter') run();
   };
+  $('terminalInput').focus();
 }
 
 function appendTerminalOutput(result) {
   const output = $('terminalOutput');
   if (!output) return;
   const block = document.createElement('div');
-  block.style.marginBottom = '8px';
-  block.innerHTML = `<div style="color:var(--accent)">$ ${escapeHtml(result.command || '')}</div>`;
+  block.className = 'terminal-block' + (result.pending ? ' pending' : '');
+  block.innerHTML = `<span class="cmd">$ ${escapeHtml(result.command || '')}</span>`;
   if (result.pending) {
     output.appendChild(block);
+    output.scrollTop = output.scrollHeight;
     return;
   }
   const text = result.output || result.error || '(no output)';
   const line = document.createElement('div');
+  line.className = 'out' + (result.error ? ' err' : '');
   line.textContent = text;
-  if (result.error) line.className = 'err';
   block.appendChild(line);
   output.appendChild(block);
   output.scrollTop = output.scrollHeight;
@@ -950,10 +1227,19 @@ function renderAiStatus(status) {
   if (!dot || !text) return;
   if (status.configured) {
     dot.className = 'dot ok';
-    text.textContent = `${status.provider} · ${status.model}`;
+    const label = status.label || status.provider;
+    const parts = [label, status.model].filter(Boolean);
+    if (status.requiresKey && !status.hasKey) {
+      parts.push('key required');
+    } else if (!status.hasKey && status.provider !== 'local') {
+      parts.push('anonymous');
+    }
+    text.textContent = parts.join(' · ');
   } else {
-    dot.className = 'dot';
-    text.textContent = 'No provider configured';
+    dot.className = 'dot bad';
+    text.textContent = status.requiresKey
+      ? `${status.label || status.provider} needs an API key`
+      : 'No provider configured';
   }
 }
 
@@ -983,7 +1269,33 @@ async function sendChat() {
   dom.chatInput.value = '';
   renderChat();
 
-  const result = await ai.chat(text, context);
+  let result;
+  if (state.useOmniRoute) {
+    const messages = [
+      {
+        role: 'system',
+        content:
+          'You are Glint AI, an expert software engineer embedded in a code editor. ' +
+          'Be concise and concrete. Prefer code over prose.',
+      },
+    ];
+    if (context.code) {
+      messages.push({
+        role: 'user',
+        content:
+          `Context — ${context.fileName} (selection):\n` +
+          '```\n' + context.code.slice(0, 12000) + '\n```',
+      });
+    }
+    messages.push({ role: 'user', content: text });
+    result = await ai.omniChat(messages, { objective: themeManager.settings.omnirouteObjective || 'auto' });
+    if (result.ok && result.routedVia) {
+      result.text = `${result.text}\n\n— routed via ${result.routedVia} (${result.objective || 'auto'})`;
+    }
+  } else {
+    result = await ai.chat(text, context);
+  }
+
   if (!result.ok) {
     state.chatMessages.push({ role: 'assistant', content: `⚠️ ${result.error}` });
   } else {
@@ -1182,33 +1494,9 @@ function renderSettingsPanel() {
     </div>
 
     <div class="settings-group">
-      <h3>AI</h3>
-      <div class="field">
-        <div><label>Provider</label><div class="hint">Where completions are computed</div></div>
-        <select id="sAiProvider">
-          ${['none', 'local', 'cloud'].map((p) => `<option value="${p}"${s.aiProvider === p ? ' selected' : ''}>${p}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <div><label>Local endpoint</label><div class="hint">Ollama or LM Studio base URL</div></div>
-        <input type="text" id="sAiLocal" value="${escapeHtml(s.aiLocalEndpoint || '')}" />
-      </div>
-      <div class="field">
-        <div><label>Local model</label><div class="hint">Model name</div></div>
-        <input type="text" id="sAiLocalModel" value="${escapeHtml(s.aiLocalModel || '')}" />
-      </div>
-      <div class="field">
-        <div><label>Cloud endpoint</label><div class="hint">OpenAI-compatible API base URL</div></div>
-        <input type="text" id="sAiCloud" value="${escapeHtml(s.aiCloudEndpoint || '')}" />
-      </div>
-      <div class="field">
-        <div><label>Cloud model</label><div class="hint">Model name</div></div>
-        <input type="text" id="sAiCloudModel" value="${escapeHtml(s.aiCloudModel || '')}" />
-      </div>
-      <div class="field full">
-        <label>Cloud API key</label>
-        <input class="glass-input" id="sAiKey" type="password" value="${escapeHtml(s.aiCloudKey || '')}" placeholder="sk-…" />
-      </div>
+      <h3>AI Provider</h3>
+      <div class="provider-list" id="providerList"></div>
+      <div id="providerDetail"></div>
       <div class="field">
         <div><label>Ghost text</label><div class="hint">Inline AI suggestions while typing</div></div>
         <button class="toggle ${s.aiGhostText ? 'on' : ''}" id="tGhost"></button>
@@ -1216,6 +1504,22 @@ function renderSettingsPanel() {
       <div class="btn-row">
         <button class="btn" id="btnTestAi">Test connection</button>
         <button class="btn" id="btnAiModels">List models</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>OmniRoute</h3>
+      <div class="field">
+        <div><label>Objective</label><div class="hint">How OmniRoute picks a model</div></div>
+        <select id="sOmniObjective">
+          ${[['auto', 'Auto'], ['auto/coding', 'Coding'], ['auto/smart', 'Quality'], ['auto/fast', 'Speed'], ['auto/cheap', 'Cheapest']]
+            .map(([v, l]) => `<option value="${v}"${(s.omnirouteObjective || 'auto') === v ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field full">
+        <label>Self-hosted OmniRoute base URL</label>
+        <input class="glass-input" id="sOmniBase" type="text" value="${escapeHtml(s.omnirouteBase || '')}" placeholder="http://127.0.0.1:8787/v1" />
+        <div class="hint" style="margin-top:4px">Optional. Leave empty to route across the providers you have connected in Glint.</div>
       </div>
     </div>
 
@@ -1310,21 +1614,36 @@ function renderSettingsPanel() {
     if (result.ok) toast('Theme exported');
   };
 
+  $('sOmniObjective').onchange = async () => {
+    await themeManager.update({ omnirouteObjective: $('sOmniObjective').value });
+    await ai.omniStatus().catch(() => {});
+  };
+  $('sOmniBase').onchange = async () => {
+    await themeManager.update({ omnirouteBase: $('sOmniBase').value.trim() });
+    await ai.omniStatus().catch(() => {});
+  };
+
   $('btnTestAi').onclick = async () => {
     await saveSettingsFromForm(false);
     const result = await ai.healthCheck();
     toast(result.ok ? `Provider ready: ${result.reply}` : result.error || 'Provider unreachable', !result.ok);
+    renderProviderDetail();
   };
 
   $('btnAiModels').onclick = async () => {
     await saveSettingsFromForm(false);
     const result = await ai.listModels();
     if (result.ok && result.models.length) {
-      openModal('Available Models', `<div style="font-family:var(--font-family);font-size:12.5px">${result.models.map(escapeHtml).join('<br>')}</div>`);
+      openModal(
+        `Available Models — ${result.total ?? result.models.length}`,
+        `<div style="font-family:var(--font-family);font-size:12.5px;max-height:52vh;overflow:auto">${result.models.map(escapeHtml).join('<br>')}</div>`,
+      );
     } else {
       toast(result.error || 'No models returned', !result.ok);
     }
   };
+
+  renderProviderList();
 
   $('btnResetSettings').onclick = async () => {
     const fresh = await api.resetSettings();
@@ -1335,6 +1654,145 @@ function renderSettingsPanel() {
   };
 
   $('btnSaveSettings').onclick = () => saveSettingsFromForm(true);
+}
+
+/** Render the list of selectable AI providers. */
+async function renderProviderList() {
+  const container = $('providerList');
+  if (!container) return;
+  const providers = await ai.listProviders();
+  const s = themeManager.settings;
+
+  container.innerHTML = '';
+  for (const provider of providers) {
+    const card = document.createElement('button');
+    card.className = 'provider-card' + (provider.id === s.aiProvider ? ' active' : '');
+    const keyField = provider.id === 'kilo' ? 'kiloKey'
+      : provider.id === 'pollinations' ? 'pollinationsKey'
+      : provider.id === 'openrouter' ? 'openrouterKey'
+      : provider.id === 'nvidia' ? 'nvidiaKey'
+      : provider.id === 'deepinfra' ? 'deepinfraKey'
+      : provider.id === 'custom' ? 'customKey' : '';
+    const hasKey = keyField ? Boolean(s[keyField]) : true;
+    const badge = provider.auth === 'none' ? 'no key needed'
+      : provider.auth === 'optional' ? (hasKey ? 'key added' : 'key optional')
+      : hasKey ? 'key added' : 'key required';
+
+    card.innerHTML = `
+      <div class="provider-head">
+        <span class="provider-name">${escapeHtml(provider.label)}</span>
+        <span class="provider-badge ${provider.auth === 'none' ? 'free' : provider.auth === 'required' && !hasKey ? 'needed' : 'ok'}">${badge}</span>
+      </div>
+      <div class="provider-desc">${escapeHtml(provider.description)}</div>
+      ${provider.rateLimit ? `<div class="provider-meta">${escapeHtml(rateLimitLabel(provider))}</div>` : ''}
+      ${provider.supportsFIM ? '<div class="provider-meta">Supports FIM ghost text</div>' : ''}`;
+
+    card.onclick = async () => {
+      themeManager.settings = { ...themeManager.settings, aiProvider: provider.id };
+      await themeManager.update({ aiProvider: provider.id });
+      await ai.refreshStatus();
+      renderProviderList();
+      renderProviderDetail();
+    };
+    container.appendChild(card);
+  }
+  renderProviderDetail();
+}
+
+/** Human-readable rate-limit summary for a provider card. */
+function rateLimitLabel(provider) {
+  const limit = provider.rateLimit;
+  if (!limit) return '';
+  if (limit.minIntervalMs) return `Anonymous: 1 request every ${Math.round(limit.minIntervalMs / 1000)}s`;
+  if (limit.requestsPerHour) return `Anonymous: ${limit.requestsPerHour} requests/hour`;
+  if (limit.requestsPerMinute) return `${limit.requestsPerMinute} requests/minute`;
+  return '';
+}
+
+/** Render the configuration controls for the selected provider. */
+async function renderProviderDetail() {
+  const container = $('providerDetail');
+  if (!container) return;
+  const providers = await ai.listProviders();
+  const provider = providers.find((p) => p.id === themeManager.settings.aiProvider);
+  if (!provider) {
+    container.innerHTML = '';
+    return;
+  }
+  const s = themeManager.settings;
+
+  const keyField = provider.id === 'kilo' ? 'kiloKey'
+    : provider.id === 'pollinations' ? 'pollinationsKey'
+    : provider.id === 'openrouter' ? 'openrouterKey'
+    : provider.id === 'nvidia' ? 'nvidiaKey'
+    : provider.id === 'deepinfra' ? 'deepinfraKey'
+    : provider.id === 'custom' ? 'customKey' : null;
+
+  const keyInput = keyField
+    ? `<div class="field full">
+        <label>${escapeHtml(provider.label)} API key</label>
+        <input class="glass-input" id="sAiProviderKey" type="password" value="${escapeHtml(s[keyField] || '')}" placeholder="${provider.auth === 'required' ? 'Required for this provider' : 'Optional — raises limits'}" />
+        ${provider.signup ? `<div class="hint" style="margin-top:4px">Get a free key at <a href="${escapeHtml(provider.signup)}" target="_blank" rel="noreferrer" style="color:var(--accent)">${escapeHtml(provider.signup)}</a></div>` : ''}
+      </div>`
+    : '';
+
+  const modelInput = `
+    <div class="field">
+      <div><label>Model</label><div class="hint">${escapeHtml(provider.defaultModel ? `Default: ${provider.defaultModel}` : 'Provider default')}</div></div>
+      <input type="text" id="sAiModel" value="${escapeHtml(s.aiModel || '')}" placeholder="${escapeHtml(provider.defaultModel || '')}" />
+    </div>`;
+
+  const endpointInput = provider.id === 'local' || provider.id === 'custom'
+    ? `<div class="field full">
+        <label>Endpoint</label>
+        <input class="glass-input" id="sAiEndpoint" type="text" value="${escapeHtml(s.aiEndpoint || provider.baseUrl)}" placeholder="${escapeHtml(provider.baseUrl)}" />
+      </div>`
+    : '';
+
+  const fimInput = provider.supportsFIM
+    ? `<div class="field">
+        <div><label>FIM model</label><div class="hint">Fill-in-the-middle model for ghost text</div></div>
+        <input type="text" id="sAiFimModel" value="${escapeHtml(s.aiFimModel || 'mistralai/codestral')}" />
+      </div>`
+    : '';
+
+  container.innerHTML = `
+    ${keyInput}
+    ${modelInput}
+    ${endpointInput}
+    ${fimInput}
+    ${provider.notes ? `<div class="provider-note">${escapeHtml(provider.notes)}</div>` : ''}
+    ${provider.docs ? `<div class="provider-note"><a href="${escapeHtml(provider.docs)}" target="_blank" rel="noreferrer" style="color:var(--accent)">Provider documentation</a></div>` : ''}`;
+
+  const modelField = $('sAiModel');
+  if (modelField) {
+    modelField.onchange = async () => {
+      await themeManager.update({ aiModel: modelField.value.trim() });
+      await ai.refreshStatus();
+    };
+  }
+  const endpointField = $('sAiEndpoint');
+  if (endpointField) {
+    endpointField.onchange = async () => {
+      await themeManager.update({ aiEndpoint: endpointField.value.trim(), aiUseCustomEndpoint: true });
+      await ai.refreshStatus();
+    };
+  }
+  const fimField = $('sAiFimModel');
+  if (fimField) {
+    fimField.onchange = async () => {
+      await themeManager.update({ aiFimModel: fimField.value.trim() });
+    };
+  }
+  const keyInputEl = $('sAiProviderKey');
+  if (keyInputEl && keyField) {
+    keyInputEl.onchange = async () => {
+      await themeManager.update({ [keyField]: keyInputEl.value.trim() });
+      await ai.refreshStatus();
+      renderProviderList();
+      renderProviderDetail();
+    };
+  }
 }
 
 async function saveSettingsFromForm(close = true) {
@@ -1361,12 +1819,19 @@ async function saveSettingsFromForm(close = true) {
     virtualScroll: $('tVirtual').classList.contains('on'),
     virtualScrollThreshold: Number($('nThreshold').value),
     nativeWatch: $('tWatch').classList.contains('on'),
-    aiProvider: $('sAiProvider').value,
-    aiLocalEndpoint: $('sAiLocal').value,
-    aiLocalModel: $('sAiLocalModel').value,
-    aiCloudEndpoint: $('sAiCloud').value,
-    aiCloudModel: $('sAiCloudModel').value,
-    aiCloudKey: $('sAiKey').value,
+    aiProvider: themeManager.settings.aiProvider || 'kilo',
+    omnirouteObjective: $('sOmniObjective') ? $('sOmniObjective').value : themeManager.settings.omnirouteObjective || 'auto',
+    omnirouteBase: $('sOmniBase') ? $('sOmniBase').value.trim() : themeManager.settings.omnirouteBase || '',
+    aiModel: $('sAiModel') ? $('sAiModel').value.trim() : themeManager.settings.aiModel || '',
+    aiEndpoint: $('sAiEndpoint') ? $('sAiEndpoint').value.trim() : themeManager.settings.aiEndpoint || '',
+    aiUseCustomEndpoint: $('sAiEndpoint') ? true : themeManager.settings.aiUseCustomEndpoint,
+    aiFimModel: $('sAiFimModel') ? $('sAiFimModel').value.trim() : themeManager.settings.aiFimModel || 'mistralai/codestral',
+    kiloKey: themeManager.settings.kiloKey || '',
+    pollinationsKey: themeManager.settings.pollinationsKey || '',
+    openrouterKey: themeManager.settings.openrouterKey || '',
+    nvidiaKey: themeManager.settings.nvidiaKey || '',
+    deepinfraKey: themeManager.settings.deepinfraKey || '',
+    customKey: themeManager.settings.customKey || '',
     aiGhostText: $('tGhost').classList.contains('on'),
     collabDisplayName: $('sCollabName').value,
   };
@@ -1615,7 +2080,12 @@ const COMMANDS = [
   { id: 'flow.deploy', label: 'Deploy: Choose Target…', icon: '🚀', run: () => setActiveView('deploy') },
   { id: 'flow.database', label: 'Tools: Database Browser…', icon: '🗄', run: () => setActiveView('database') },
   { id: 'flow.api', label: 'Tools: API Client…', icon: '🔌', run: openApiClient },
-  { id: 'flow.terminal', label: 'Terminal: Run Command', icon: '❯', cmd: '⌘J', run: () => openBottomPanel('terminal') },
+  { id: 'flow.terminal', label: 'Terminal: Show Terminal', icon: '❯', cmd: '⌘J', run: () => openBottomPanel('terminal') },
+  { id: 'ai.providers', label: 'AI: Show Providers & Models', icon: '✦', run: () => setActiveView('ai') },
+  { id: 'ai.omniroute', label: 'AI: Toggle OmniRoute Routing', icon: '⇄', run: () => $('chatOmni').click() },
+  { id: 'ai.archive', label: 'AI: Show Archived Models', icon: '⌫', run: () => setActiveView('ai') },
+  { id: 'ai.restore-all', label: 'AI: Restore All Archived Models', icon: '↩', run: async () => { await ai.clearArchive(); toast('All models restored'); renderAiSidebar(); } },
+  { id: 'ai.configure', label: 'AI: Configure Provider…', icon: '⚙', run: openSettings },
   { id: 'git.panel', label: 'Source Control: Show Panel', icon: '⑂', run: () => setActiveView('git') },
   { id: 'git.refresh', label: 'Source Control: Refresh', icon: '⟳', run: refreshGitStatus },
   { id: 'help.github', label: 'Help: Glint on GitHub', icon: '⭐', run: () => window.open('https://github.com/mailsitnc-ai/glint') },
@@ -1781,6 +2251,22 @@ $('btnOpenFolder').onclick = openFolder;
 $('btnPalette').onclick = openPalette;
 $('btnSettings').onclick = openSettings;
 $('btnZen').onclick = toggleZen;
+$('btnTerminal').onclick = () => {
+  if (state.bottomPanelOpen && state.activePanel === 'terminal') {
+    closeBottomPanel();
+  } else {
+    openBottomPanel('terminal');
+  }
+  updateTerminalButtonState();
+};
+
+/** Reflect the terminal panel state on its title-bar button. */
+function updateTerminalButtonState() {
+  const btn = $('btnTerminal');
+  if (!btn) return;
+  const active = state.bottomPanelOpen && state.activePanel === 'terminal';
+  btn.classList.toggle('active', active);
+}
 $('btnLiquid').onclick = toggleLiquid;
 $('btnMinimize').onclick = () => api.minimize();
 $('btnMaximize').onclick = () => api.toggleMaximize();
@@ -1865,6 +2351,8 @@ document.querySelectorAll('.panel-tab').forEach((tab) => {
   tab.onclick = () => {
     state.activePanel = tab.dataset.panel;
     document.querySelectorAll('.panel-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    // Clicking a tab both selects it and makes sure the panel is visible.
+    openBottomPanel(tab.dataset.panel);
     renderPanel(tab.dataset.panel);
   };
 });

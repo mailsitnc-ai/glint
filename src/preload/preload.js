@@ -57,9 +57,28 @@ contextBridge.exposeInMainWorld('glint', {
   /* ---------------------------------------------------------------- */
   /* AI                                                                 */
   /* ---------------------------------------------------------------- */
+  aiProviders: () => ipcRenderer.invoke('ai:providers'),
   aiStatus: () => ipcRenderer.invoke('ai:status'),
   aiModels: () => ipcRenderer.invoke('ai:models'),
   aiHealth: () => ipcRenderer.invoke('ai:health'),
+  aiFim: (payload) => ipcRenderer.invoke('ai:fim', payload),
+
+  /* model archive */
+  aiArchive: (providerId, modelId, reason) => ipcRenderer.invoke('ai:archive', providerId, modelId, reason),
+  aiUnarchive: (providerId, modelId) => ipcRenderer.invoke('ai:unarchive', providerId, modelId),
+  aiArchived: () => ipcRenderer.invoke('ai:archived'),
+  aiArchiveClear: () => ipcRenderer.invoke('ai:archive-clear'),
+
+  /* omniroute */
+  aiOmniStatus: () => ipcRenderer.invoke('ai:omniroute-status'),
+  aiOmniObjectives: () => ipcRenderer.invoke('ai:omniroute-objectives'),
+  aiOmniCandidates: (objective) => ipcRenderer.invoke('ai:omniroute-candidates', objective),
+  aiOmniChat: (messages, options) => ipcRenderer.invoke('ai:omniroute-chat', messages, options || {}),
+  onAiRouteEvent: (cb) => {
+    const listener = (_e, payload) => cb(payload);
+    ipcRenderer.on('ai:route-event', listener);
+    return () => ipcRenderer.removeListener('ai:route-event', listener);
+  },
   aiChat: (messages, options) => ipcRenderer.invoke('ai:chat', messages, options),
   aiExplain: (payload) => ipcRenderer.invoke('ai:explain', payload),
   aiRefactor: (payload) => ipcRenderer.invoke('ai:refactor', payload),

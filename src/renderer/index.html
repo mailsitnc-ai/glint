@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Glint</title>
+  <title>Glint : Caelix IDE</title>
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/panels.css" />
 </head>
@@ -13,7 +13,7 @@
     <div class="titlebar">
       <div class="app-name">
         <div class="logo">G</div>
-        <span>Glint</span>
+        <span>Glint <span style="opacity:.55">: Caelix IDE</span></span>
         <span class="workspace-name" id="workspaceName"></span>
       </div>
       <div class="titlebar-spacer"></div>
@@ -23,6 +23,9 @@
         </button>
         <button class="icon-btn" id="btnPalette" title="Command Palette (⇧⌘P)">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h12M2 8h12M2 12.5h7"/></svg>
+        </button>
+        <button class="icon-btn" id="btnTerminal" title="Terminal (⌘J)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4l3.5 4-3.5 4M8 12h5.5"/></svg>
         </button>
         <button class="icon-btn" id="btnZen" title="Zen Mode (⌘K)">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5V2.5h3M14 5V2.5h-3M2 11v2.5h3M14 11v2.5h-3"/></svg>
@@ -111,7 +114,7 @@
             <textarea id="editorInput" spellcheck="false" wrap="off"></textarea>
             <div class="editor-placeholder" id="placeholder">
               <div class="big">✦</div>
-              <h2>Glint</h2>
+              <h2>Glint <span style="opacity:.55">: Caelix IDE</span></h2>
               <p>Open a folder or file to start editing. Everything stays local on your machine.</p>
               <div class="keys">
                 <kbd>⌘O</kbd><span style="align-self:center;font-size:12px;color:var(--text-muted)">Open folder</span>
