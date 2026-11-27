@@ -68,6 +68,41 @@ npm run dmg        # build + create dist/Glint-<version>-arm64.dmg (drag-to-Appl
 
 ## Feature sets
 
+### Liquid glass
+
+The glass is a real material, not a flat translucent fill. Three layers do the work:
+
+**1. Backdrop** (`src/renderer/styles/base.css`, `#root::before` / `#root::after`)
+Five radial gradients — keyed to the accent colour so the mesh follows the
+theme — over a diagonal base gradient, plus a screen-blend bloom for light
+falloff and a fine SVG-turbulence grain that stops banding. This layer is
+essential: without something colourful behind it, `backdrop-filter` has
+nothing to refract and every panel renders flat.
+
+**2. Material** (`.glass`, `.chrome-glass`)
+Surfaces are a translucent white tint *over* the backdrop rather than a flat
+tint of the background colour. The blur is `blur(30px) saturate(200%)
+brightness(118%)`. Edges are a gradient drawn with a masked pseudo-element —
+bright specular at the top fading to an accent-tinted chromatic edge at the
+base — finished with an inset bevel highlight and an outer shadow.
+
+**3. Application**
+Title bar, activity bar, sidebar, tab bar, status bar, editor pane, gutter,
+find bar, bottom panel, side panels, command palette, modals, buttons, icon
+buttons, tree items, chat bubbles, provider cards and inputs.
+
+Measured before this change, one colour occupied 69% of the frame. After, no
+colour exceeds 4% and each panel shows its own gradient as the accent
+refracts through it.
+
+Modes:
+- **Solid** (`no-glass`) keeps a dimmed backdrop and flattens the translucency
+- **Liquid** layers the desktop wallpaper over the mesh rather than replacing it
+- **Ambient light** shifts a tint across the day
+
+`npm run test:glass` asserts all of the above (31 assertions) directly
+against the computed styles.
+
 ### Performance
 - **Virtual scrolling** — only the visible window of lines is rendered for huge files (configurable threshold, default 5000 lines). Verified with 12,000-line files.
 - **Native file watching** — event-driven `fs.watch` with debounced notifications instead of polling.
@@ -217,6 +252,17 @@ npm run pack       # package to dist/mac-arm64/Glint.app
 ```
 
 The app icon lives in `assets/` (`icon.png`, `icon.icns`); the titlebar logo is `src/renderer/assets/logo.png`.
+
+## Testing
+
+End-to-end tests drive the running app through the Chromium DevTools
+Protocol — real renderer, real IPC, real filesystem. See [`test/README.md`](test/README.md).
+
+```bash
+npm run pack
+./dist/mac-arm64/Glint.app/Contents/MacOS/Glint --remote-debugging-port=9333 &
+npm test
+```
 
 ## Verification
 

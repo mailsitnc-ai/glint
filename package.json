@@ -11,7 +11,12 @@
     "dev": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "dmg": "npm run pack && bash scripts/make-dmg.sh"
+    "dmg": "npm run pack && bash scripts/make-dmg.sh",
+    "test": "node test/core.test.cjs && node test/glass.test.cjs && node test/rebrand.test.cjs",
+    "test:core": "node test/core.test.cjs",
+    "test:glass": "node test/glass.test.cjs",
+    "test:rebrand": "node test/rebrand.test.cjs",
+    "screenshot": "node test/screenshot.cjs"
   },
   "devDependencies": {
     "electron": "^38.8.6",
