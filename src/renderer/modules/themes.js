@@ -51,16 +51,26 @@ export class ThemeManager {
     root.style.setProperty('--text', s.text);
     root.style.setProperty('--text-muted', s.muted);
     root.style.setProperty('--accent', s.accent);
+    root.style.setProperty('--accent-rgb', rgbTriplet(s.accent));
     root.style.setProperty('--accent-soft', rgba(s.accent, 0.3));
     root.style.setProperty('--accent-contrast', contrastColor(s.accent));
-    root.style.setProperty('--surface', rgba(s.bg, s.glassOpacity / 100));
-    root.style.setProperty('--surface-strong', rgba(s.bg, 0.94));
-    root.style.setProperty('--surface-hover', rgba(s.text, 0.07));
-    root.style.setProperty('--sidebar', rgba(s.bg, (s.glassOpacity + 10) / 100));
-    root.style.setProperty('--glass-border', rgba(s.text, 0.12));
-    root.style.setProperty('--tab-active', rgba(s.text, 0.11));
-    root.style.setProperty('--tab-hover', rgba(s.text, 0.05));
-    root.style.setProperty('--scrollbar', rgba(s.text, 0.09));
+
+    // Liquid glass surfaces: translucent white tint over the backdrop rather
+    // than a flat tint of the background colour, so the blur actually reads.
+    const tint = s.text;
+    root.style.setProperty('--glass-tint', rgbTriplet(tint));
+    root.style.setProperty('--surface', rgba(tint, s.glassOpacity / 1000));
+    root.style.setProperty('--surface-strong', rgba(s.bg, 0.72));
+    root.style.setProperty('--surface-hover', rgba(tint, 0.09));
+    root.style.setProperty('--sidebar', rgba(tint, (s.glassOpacity + 10) / 1000));
+    root.style.setProperty('--glass-edge', rgba(tint, 0.18));
+    root.style.setProperty('--glass-edge-strong', rgba(tint, 0.34));
+    root.style.setProperty('--glass-specular', rgba(tint, 0.5));
+    root.style.setProperty('--glass-inner', rgba(tint, 0.12));
+    root.style.setProperty('--glass-border', rgba(tint, 0.16));
+    root.style.setProperty('--tab-active', rgba(tint, 0.13));
+    root.style.setProperty('--tab-hover', rgba(tint, 0.06));
+    root.style.setProperty('--scrollbar', rgba(tint, 0.12));
     root.style.setProperty('--glass-blur', `${s.glassBlur}px`);
     root.style.setProperty('--font-size', `${s.fontSize}px`);
     root.style.setProperty('--font-weight', String(s.fontWeight || 400));
@@ -198,6 +208,12 @@ export class ThemeManager {
 /* -------------------------------------------------------------------- */
 /* Colour helpers                                                       */
 /* -------------------------------------------------------------------- */
+
+/** "124, 58, 237" — for use inside rgba() in CSS. */
+export function rgbTriplet(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return `${r}, ${g}, ${b}`;
+}
 
 function hexToRgb(hex) {
   const clean = String(hex || '').replace('#', '');
