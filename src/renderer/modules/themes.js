@@ -55,22 +55,39 @@ export class ThemeManager {
     root.style.setProperty('--accent-soft', rgba(s.accent, 0.3));
     root.style.setProperty('--accent-contrast', contrastColor(s.accent));
 
+    // The backdrop mesh is derived entirely from the theme's own colours, so
+    // a theme never inherits another theme's hue. Each mesh blob is a
+    // lightened / desaturated relative of the accent or background, which
+    // keeps the result pastel and airy rather than neon.
+    const backdrop = buildBackdropPalette(s);
+    root.style.setProperty('--mesh-accent', backdrop.accent);
+    root.style.setProperty('--mesh-accent-2', backdrop.accent2);
+    root.style.setProperty('--mesh-accent-3', backdrop.accent3);
+    root.style.setProperty('--mesh-bg', backdrop.bg);
+    root.style.setProperty('--mesh-bg-2', backdrop.bg2);
+    root.style.setProperty('--mesh-light', backdrop.light);
+
     // Liquid glass surfaces: translucent white tint over the backdrop rather
     // than a flat tint of the background colour, so the blur actually reads.
-    const tint = s.text;
-    root.style.setProperty('--glass-tint', rgbTriplet(tint));
-    root.style.setProperty('--surface', rgba(tint, s.glassOpacity / 1000));
-    root.style.setProperty('--surface-strong', rgba(s.bg, 0.72));
-    root.style.setProperty('--surface-hover', rgba(tint, 0.09));
-    root.style.setProperty('--sidebar', rgba(tint, (s.glassOpacity + 10) / 1000));
-    root.style.setProperty('--glass-edge', rgba(tint, 0.18));
-    root.style.setProperty('--glass-edge-strong', rgba(tint, 0.34));
-    root.style.setProperty('--glass-specular', rgba(tint, 0.5));
-    root.style.setProperty('--glass-inner', rgba(tint, 0.12));
-    root.style.setProperty('--glass-border', rgba(tint, 0.16));
-    root.style.setProperty('--tab-active', rgba(tint, 0.13));
-    root.style.setProperty('--tab-hover', rgba(tint, 0.06));
-    root.style.setProperty('--scrollbar', rgba(tint, 0.12));
+    // A near-white tint keeps the material frosted and light in every
+    // theme; the colour comes from the backdrop behind it, not the surface.
+    // rgbaTriplet takes an "r, g, b" string, which is what the glass tokens
+    // use. rgba() expects a hex value, so they must not be mixed up.
+    const tint = '255, 255, 255';
+    const opacity = s.glassOpacity / 100;
+    root.style.setProperty('--glass-tint', tint);
+    root.style.setProperty('--surface', rgbaTriplet(tint, opacity * 0.28));
+    root.style.setProperty('--surface-strong', rgbaTriplet(tint, opacity * 0.42));
+    root.style.setProperty('--surface-hover', rgbaTriplet(tint, 0.14));
+    root.style.setProperty('--sidebar', rgbaTriplet(tint, opacity * 0.22));
+    root.style.setProperty('--glass-edge', rgbaTriplet(tint, 0.42));
+    root.style.setProperty('--glass-edge-strong', rgbaTriplet(tint, 0.62));
+    root.style.setProperty('--glass-specular', rgbaTriplet(tint, 0.92));
+    root.style.setProperty('--glass-inner', rgbaTriplet(tint, 0.22));
+    root.style.setProperty('--glass-border', rgbaTriplet(tint, 0.34));
+    root.style.setProperty('--tab-active', rgbaTriplet(tint, 0.22));
+    root.style.setProperty('--tab-hover', rgbaTriplet(tint, 0.10));
+    root.style.setProperty('--scrollbar', rgbaTriplet(tint, 0.18));
     root.style.setProperty('--glass-blur', `${s.glassBlur}px`);
     root.style.setProperty('--font-size', `${s.fontSize}px`);
     root.style.setProperty('--font-weight', String(s.fontWeight || 400));
@@ -209,6 +226,64 @@ export class ThemeManager {
 /* Colour helpers                                                       */
 /* -------------------------------------------------------------------- */
 
+/**
+ * Derive the liquid-glass backdrop palette from a theme.
+ *
+ * The reference treatment is a soft, light, frosted field — not saturated
+ * neon. So each blob is the theme colour pushed towards white and slightly
+ * desaturated. Dark themes therefore produce deep, muted jewel tones while
+ * light themes produce the pale periwinkle of the reference.
+ */
+export function buildBackdropPalette(settings) {
+  const accent = hexToRgb(settings.accent);
+  const bg = hexToRgb(settings.bg);
+  const light = isLight(settings.bg);
+
+  // Blend a colour towards white by `amount` (0..1).
+  const toward = (c, amount) => ({
+    r: Math.round(c.r + (255 - c.r) * amount),
+    g: Math.round(c.g + (255 - c.g) * amount),
+    b: Math.round(c.b + (255 - c.b) * amount),
+  });
+
+  // Blend two colours together.
+  const mix = (a, b, amount) => ({
+    r: Math.round(a.r + (b.r - a.r) * amount),
+    g: Math.round(a.g + (b.g - a.g) * amount),
+    b: Math.round(a.b + (b.b - a.b) * amount),
+  });
+
+  if (light) {
+    // Light theme: pale, luminous, close to the reference image.
+    const a = toward(accent, 0.62);
+    const b = toward(mix(accent, bg, 0.55), 0.55);
+    const c = toward(bg, 0.42);
+    const bgLift = toward(bg, 0.18);
+    const bg2 = toward(c, 0.3);
+    return {
+      accent: `${a.r}, ${a.g}, ${a.b}`,
+      accent2: `${b.r}, ${b.g}, ${b.b}`,
+      accent3: `${c.r}, ${c.g}, ${c.b}`,
+      bg: `${bgLift.r}, ${bgLift.g}, ${bgLift.b}`,
+      bg2: `${bg2.r}, ${bg2.g}, ${bg2.b}`,
+      light: '255, 255, 255',
+    };
+  }
+
+  // Dark theme: deep and muted, but still clearly coloured rather than black.
+  const a = toward(accent, 0.30);
+  const b = toward(mix(accent, bg, 0.6), 0.22);
+  const c = toward(bg, 0.14);
+  return {
+    accent: `${a.r}, ${a.g}, ${a.b}`,
+    accent2: `${b.r}, ${b.g}, ${b.b}`,
+    accent3: `${c.r}, ${c.g}, ${c.b}`,
+    bg: `${bg.r}, ${bg.g}, ${bg.b}`,
+    bg2: `${c.r}, ${c.g}, ${c.b}`,
+    light: '255, 255, 255',
+  };
+}
+
 /** "124, 58, 237" — for use inside rgba() in CSS. */
 export function rgbTriplet(hex) {
   const { r, g, b } = hexToRgb(hex);
@@ -226,6 +301,11 @@ function hexToRgb(hex) {
 export function rgba(hex, alpha) {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/** Build an rgba() string from an "r, g, b" triplet. */
+export function rgbaTriplet(triplet, alpha) {
+  return `rgba(${triplet},${alpha})`;
 }
 
 export function isLight(hex) {

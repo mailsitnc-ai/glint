@@ -24,16 +24,25 @@
   --glass-opacity: 62%;
 
   /* --- Liquid glass system --- */
+  /* Frosted glass material — pale, light and airy, like the reference. */
   --glass-tint: 255, 255, 255;
   --glass-alpha: 0.07;
-  --glass-edge: rgba(255, 255, 255, 0.18);
-  --glass-edge-strong: rgba(255, 255, 255, 0.32);
-  --glass-specular: rgba(255, 255, 255, 0.75);
-  --glass-inner: rgba(255, 255, 255, 0.10);
-  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.42);
-  --glass-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.55);
-  --glass-radius: 16px;
-  --glass-blur-filter: blur(30px) saturate(200%) brightness(118%);
+  --glass-edge: rgba(255, 255, 255, 0.42);
+  --glass-edge-strong: rgba(255, 255, 255, 0.62);
+  --glass-specular: rgba(255, 255, 255, 0.92);
+  --glass-inner: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 14px 44px rgba(15, 18, 34, 0.30);
+  --glass-shadow-lg: 0 28px 80px rgba(15, 18, 34, 0.38);
+  --glass-radius: 18px;
+  --glass-blur-filter: blur(34px) saturate(165%) brightness(108%);
+
+  /* Backdrop mesh — filled from the active theme at runtime. */
+  --mesh-accent: 124, 58, 237;
+  --mesh-accent-2: 56, 189, 248;
+  --mesh-accent-3: 16, 185, 129;
+  --mesh-bg: 15, 15, 18;
+  --mesh-bg-2: 26, 22, 34;
+  --mesh-light: 255, 255, 255;
 
   --font-size: 14px;
   --font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
@@ -93,12 +102,15 @@ body {
   inset: 0;
   z-index: -3;
   background:
-    radial-gradient(1200px 820px at 10% -10%, rgba(var(--accent-rgb, 124, 58, 237), 0.78), transparent 64%),
-    radial-gradient(980px 760px at 92% 2%, rgba(56, 189, 248, 0.62), transparent 62%),
-    radial-gradient(1100px 940px at 82% 98%, rgba(236, 72, 153, 0.55), transparent 64%),
-    radial-gradient(820px 680px at 22% 94%, rgba(16, 185, 129, 0.42), transparent 62%),
-    radial-gradient(700px 560px at 52% 44%, rgba(251, 191, 36, 0.20), transparent 66%),
-    linear-gradient(148deg, #241539 0%, #0f1a30 40%, #2a1533 72%, #0d1428 100%);
+    radial-gradient(1150px 800px at 12% -12%, rgba(var(--mesh-accent), 0.62), transparent 66%),
+    radial-gradient(940px 720px at 90% 4%, rgba(var(--mesh-accent-2), 0.50), transparent 64%),
+    radial-gradient(1050px 900px at 84% 96%, rgba(var(--mesh-accent-3), 0.42), transparent 66%),
+    radial-gradient(760px 620px at 26% 92%, rgba(var(--mesh-accent-2), 0.26), transparent 64%),
+    radial-gradient(880px 700px at 50% 46%, rgba(var(--mesh-light), 0.10), transparent 68%),
+    linear-gradient(148deg,
+      rgba(var(--mesh-bg), 1) 0%,
+      rgba(var(--mesh-bg-2), 1) 44%,
+      rgba(var(--mesh-bg), 1) 100%);
   background-color: var(--bg);
 }
 
@@ -110,11 +122,11 @@ body {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(140% 90% at 50% -22%, rgba(255, 255, 255, 0.20), transparent 58%),
-    radial-gradient(90% 70% at 100% 100%, rgba(var(--accent-rgb, 124, 58, 237), 0.26), transparent 64%),
-    radial-gradient(70% 55% at 0% 100%, rgba(56, 189, 248, 0.18), transparent 66%);
+    radial-gradient(140% 88% at 50% -24%, rgba(var(--mesh-light), 0.26), transparent 60%),
+    radial-gradient(88% 68% at 100% 100%, rgba(var(--mesh-accent), 0.22), transparent 66%),
+    radial-gradient(68% 54% at 0% 100%, rgba(var(--mesh-accent-2), 0.16), transparent 68%);
   mix-blend-mode: screen;
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
 /* Fine noise prevents the gradients from banding and adds a tactile grain. */
@@ -136,8 +148,12 @@ body.no-glass {
 /* Solid mode keeps a hint of the backdrop but flattens the translucency. */
 body.no-glass #root::before {
   background-image:
-    radial-gradient(1100px 780px at 12% -8%, rgba(var(--accent-rgb, 124, 58, 237), 0.22), transparent 62%),
-    linear-gradient(148deg, #191026 0%, #0d1424 42%, #1a0f1c 74%, #0b1020 100%);
+    radial-gradient(1150px 800px at 12% -12%, rgba(var(--mesh-accent), 0.26), transparent 66%),
+    radial-gradient(940px 720px at 90% 4%, rgba(var(--mesh-accent-2), 0.20), transparent 64%),
+    linear-gradient(148deg,
+      rgba(var(--mesh-bg), 1) 0%,
+      rgba(var(--mesh-bg-2), 1) 44%,
+      rgba(var(--mesh-bg), 1) 100%);
 }
 body.no-glass #root::after { opacity: 0.3; }
 body.no-glass .grain { opacity: 0.015; }
@@ -162,9 +178,9 @@ body.zen-mode .tabbar { display: none !important; }
   background:
     linear-gradient(
       160deg,
-      rgba(var(--glass-tint), 0.17) 0%,
-      rgba(var(--glass-tint), 0.07) 42%,
-      rgba(var(--glass-tint), 0.03) 100%
+      rgba(var(--glass-tint), 0.30) 0%,
+      rgba(var(--glass-tint), 0.16) 45%,
+      rgba(var(--glass-tint), 0.10) 100%
     ),
     var(--surface);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
@@ -207,9 +223,9 @@ body.zen-mode .tabbar { display: none !important; }
   background:
     linear-gradient(
       165deg,
-      rgba(var(--glass-tint), 0.14) 0%,
-      rgba(var(--glass-tint), 0.05) 55%,
-      rgba(var(--glass-tint), 0.02) 100%
+      rgba(var(--glass-tint), 0.26) 0%,
+      rgba(var(--glass-tint), 0.12) 55%,
+      rgba(var(--glass-tint), 0.07) 100%
     );
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
@@ -238,9 +254,9 @@ body.zen-mode .tabbar { display: none !important; }
 }
 
 .glass-input {
-  background: rgba(10, 10, 16, 0.34);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid var(--glass-edge);
   color: var(--text);
   border-radius: 10px;
@@ -255,7 +271,7 @@ body.zen-mode .tabbar { display: none !important; }
 .glass-input:hover { border-color: var(--glass-edge-strong); }
 .glass-input:focus {
   border-color: var(--accent);
-  background: rgba(10, 10, 16, 0.46);
+  background: rgba(255, 255, 255, 0.24);
   box-shadow:
     0 0 0 3px var(--accent-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -269,9 +285,12 @@ body.liquid-mode {
 }
 body.liquid-mode #root::before {
   background-image:
-    radial-gradient(1100px 780px at 12% -8%, rgba(var(--accent-rgb, 124, 58, 237), 0.4), transparent 62%),
-    radial-gradient(900px 700px at 88% 6%, rgba(56, 189, 248, 0.3), transparent 60%),
-    linear-gradient(148deg, #191026 0%, #0d1424 42%, #1a0f1c 74%, #0b1020 100%),
+    radial-gradient(1150px 800px at 12% -12%, rgba(var(--mesh-accent), 0.42), transparent 66%),
+    radial-gradient(940px 720px at 90% 4%, rgba(var(--mesh-accent-2), 0.32), transparent 64%),
+    linear-gradient(148deg,
+      rgba(var(--mesh-bg), 1) 0%,
+      rgba(var(--mesh-bg-2), 1) 44%,
+      rgba(var(--mesh-bg), 1) 100%),
     var(--wallpaper);
   background-size: cover, cover, cover, cover;
   background-position: center;
@@ -314,14 +333,14 @@ body.liquid-mode .editor-body {
   align-items: center;
   padding: 0 14px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02)),
-    rgba(12, 12, 18, 0.42);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.11)),
+    rgba(255, 255, 255, 0.05);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   border-bottom: 1px solid var(--glass-edge);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 1px 0 rgba(0, 0, 0, 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 1px 0 rgba(0, 0, 0, 0.16);
   user-select: none;
   z-index: 20;
   flex-shrink: 0;
@@ -384,8 +403,8 @@ body.liquid-mode .editor-body {
   width: 50px;
   flex-shrink: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
-    rgba(12, 12, 18, 0.40);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.04);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   border-right: 1px solid var(--glass-edge);
@@ -442,8 +461,8 @@ body.liquid-mode .editor-body {
   min-width: 180px;
   max-width: 520px;
   background:
-    linear-gradient(170deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03) 60%),
-    rgba(12, 12, 18, 0.30);
+    linear-gradient(170deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.09) 60%),
+    rgba(255, 255, 255, 0.05);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   border-right: 1px solid var(--glass-edge);
@@ -545,8 +564,8 @@ body.liquid-mode .editor-body {
   height: 38px;
   border-bottom: 1px solid var(--glass-edge);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.008)),
-    rgba(12, 12, 18, 0.30);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)),
+    rgba(255, 255, 255, 0.03);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -599,8 +618,8 @@ body.liquid-mode .editor-body {
   height: 40px;
   border-bottom: 1px solid var(--glass-edge);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
-    rgba(12, 12, 18, 0.40);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.04);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
@@ -621,8 +640,8 @@ body.liquid-mode .editor-body {
   overflow: hidden;
   position: relative;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-    rgba(8, 8, 14, 0.26);
+    linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
+    rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(16px) saturate(130%);
   -webkit-backdrop-filter: blur(16px) saturate(130%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -637,8 +656,8 @@ body.liquid-mode .editor-body {
   font-size: var(--font-size);
   line-height: var(--font-line-height);
   color: rgba(255, 255, 255, 0.28);
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.06));
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.03));
+  border-right: 1px solid rgba(255, 255, 255, 0.10);
   overflow: hidden;
   user-select: none;
   position: relative;
@@ -760,8 +779,8 @@ body.liquid-mode .editor-body {
 .statusbar {
   height: 27px;
   background:
-    linear-gradient(0deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.008)),
-    rgba(12, 12, 18, 0.42);
+    linear-gradient(0deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.06)),
+    rgba(255, 255, 255, 0.04);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   border-top: 1px solid var(--glass-edge);
@@ -787,8 +806,8 @@ body.liquid-mode .editor-body {
   min-height: 120px;
   max-height: 70vh;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
-    rgba(12, 12, 18, 0.44);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.04);
   backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   -webkit-backdrop-filter: var(--glass-blur-filter) blur(var(--glass-blur));
   border-top: 1px solid var(--glass-edge);

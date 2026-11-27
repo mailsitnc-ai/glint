@@ -32,7 +32,8 @@ async function main() {
   const view = process.argv[2] || 'main';
   const out = process.argv[3] || path.join(process.cwd(), `glint-${view}.png`);
 
-  if (!VIEWS[view]) {
+  // Use hasOwnProperty: the "main" view maps to an empty action string.
+  if (!Object.prototype.hasOwnProperty.call(VIEWS, view)) {
     console.error(`Unknown view "${view}". Options: ${Object.keys(VIEWS).join(', ')}`);
     process.exitCode = 1;
     return;
